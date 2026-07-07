@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-07-08
 decision-makers: fuj1g0n
 ---
