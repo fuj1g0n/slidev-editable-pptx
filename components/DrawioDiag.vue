@@ -35,8 +35,10 @@ function loadViewer() {
 
 onMounted(async () => {
   const [xmlRaw, theme] = await Promise.all([
-    fetch(props.src).then((r) => r.text()),
-    fetch(props.themeSrc || `${props.src}.theme.json`)
+    // 図の更新がブラウザの heuristic cache で見えなくなるのを防ぐ
+    // （ETag があれば 304 で安価に再検証される）
+    fetch(props.src, { cache: 'no-cache' }).then((r) => r.text()),
+    fetch(props.themeSrc || `${props.src}.theme.json`, { cache: 'no-cache' })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
   ])
