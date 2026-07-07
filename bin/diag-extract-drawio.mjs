@@ -96,7 +96,7 @@ const N = (v) => Math.round(v * 100) / 100
 // CSS 実測と一致し、塗り境界がページ矩形に収まる
 const crispOffset = (sw) => (Math.max(1, Math.round(sw || 1)) % 2 === 1 ? 0.5 : 0)
 
-function buildDrawio(elements, dg, imageData) {
+function buildDrawio(elements, dg, imageData, background) {
   let id = 1
   const cells = []
   const usedColors = new Set()
@@ -228,7 +228,7 @@ function buildDrawio(elements, dg, imageData) {
 
   const xml =
     `<mxfile host="diag-extract-drawio"><diagram id="poc" name="Page-1">` +
-    `<mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="0" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="${N(dg.w)}" pageHeight="${N(dg.h)}" math="0" shadow="0">` +
+    `<mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="0" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="${N(dg.w)}" pageHeight="${N(dg.h)}"${background ? ` background="${color(background)}"` : ''} math="0" shadow="0">` +
     `<root><mxCell id="0"/><mxCell id="1" parent="0"/>` +
     cells.join('') +
     `</root></mxGraphModel></diagram></mxfile>`
@@ -254,6 +254,20 @@ try {
       const dg = root.querySelector('[data-diag="root"]')
       const r = dg.getBoundingClientRect()
       const cs = getComputedStyle(dg)
+      // 図の実効背景色: 祖先を遡って最初の不透明 background-color。
+      // Slidev では背景はスライド側が持つため、drawio 単体表示用に
+      // page background として埋める
+      let bg = null
+      for (let e = dg; e; e = e.parentElement) {
+        const c = getComputedStyle(e).backgroundColor
+        const m = c.match(/^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/)
+        if (m && (m[4] === undefined || parseFloat(m[4]) > 0)) {
+          bg = [m[1], m[2], m[3]]
+            .map((v) => Number(v).toString(16).padStart(2, '0'))
+            .join('')
+          break
+        }
+      }
       const theme = {}
       for (const v of vars) {
         const val = cs.getPropertyValue(v).trim()
@@ -267,6 +281,7 @@ try {
           h: r.height * scale,
         },
         theme,
+        bg,
       }
     },
     sel,
@@ -299,7 +314,7 @@ try {
   }
   console.log(`画像埋め込み: ${imageData.size} 種`)
 
-  const { xml, usedColors } = buildDrawio(els, info.dg, imageData)
+  const { xml, usedColors } = buildDrawio(els, info.dg, imageData, info.bg)
 
   // テーマ写像: 使用色のうち CSS 変数値と一致するものを対応表にする
   const byValue = {}
