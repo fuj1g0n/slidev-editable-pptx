@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // 公式アイコンセット（Azure / Microsoft Entra）とブランドロゴを取得して
 // slides/public/icons/ に展開する。
-// - Azure Architecture Icons V23（claim-0019）
-// - Microsoft Entra architecture icons Oct 2023（claim-0022）
-// - ブランドロゴ: simple-icons（CC0、claim-0020）と Wikimedia Commons の
-//   パブリックドメインロゴ（Windows / Windows 365、claim-0023）→ brands/
+// - Azure Architecture Icons V23
+// - Microsoft Entra architecture icons Oct 2023
+// - ブランドロゴ: simple-icons（CC0）と Wikimedia Commons の
+//   パブリックドメインロゴ（Windows / Windows 365）→ brands/
 // 展開先は gitignore 対象。バージョンマーカーが一致すればスキップする（冪等）。
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -30,7 +30,7 @@ const BRAND_FILES = [
   { file: 'terraform.svg', url: `${SIMPLE_ICONS}/terraform.svg`, color: '#844FBA' },
   { file: 'typescript.svg', url: `${SIMPLE_ICONS}/typescript.svg`, color: '#3178C6' },
   {
-    // Java 公式マスコット Duke（BSD、claim-0024）。原本はページサイズの
+    // Java 公式マスコット Duke（BSD）。原本はページサイズの
     // 余白が大きいため viewBox を実絵の範囲にトリムする。
     file: 'duke.svg',
     url: 'https://raw.githubusercontent.com/openjdk/duke/master/vector/Wave.svg',
@@ -51,17 +51,17 @@ const BRAND_FILES = [
     url: 'https://upload.wikimedia.org/wikipedia/commons/f/f9/Windows365-logo.svg',
   },
   {
-    // AWS ロゴ（Apache-2.0、claim-0025）
+    // AWS ロゴ（Apache-2.0）
     file: 'aws.svg',
     url: 'https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg',
   },
   {
-    // Microsoft Azure ロゴ（PD、claim-0025）
+    // Microsoft Azure ロゴ（PD）
     file: 'azure.svg',
     url: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg',
   },
   {
-    // Google Cloud ロゴ（PD、claim-0025）
+    // Google Cloud ロゴ（PD）
     file: 'gcp.svg',
     url: 'https://upload.wikimedia.org/wikipedia/commons/0/01/Google-cloud-platform.svg',
   },

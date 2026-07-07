@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // slidev-editable-pptx — Slidev のスライドを編集可能な PPTX に変換する。
-// 思想は marp-to-editable-pptx（claim-0009）を継承: Chromium で描画済み DOM を
+// 思想は marp-to-editable-pptx を継承: Chromium で描画済み DOM を
 // 実測し、PptxGenJS のネイティブ図形（テキストボックス・表・画像）として再構築する。
 // 図形選定の基準（詳細は DESIGN.md「Vue コンポーネント図」の節）:
 //   プリセット図形は実測ジオメトリを adjust 値で完全に再現できる場合
@@ -8,7 +8,7 @@
 //   それ以外は custGeom で実測座標を直接書く。プリセットの既定 adjust に
 //   依存しない（bentConnector2 / chevron で形状ズレが起きた前例がある）。
 // 入力は Slidev dev server の per-slide print ビュー（/{n}?print=true）。
-// 生成後、slides/public/fonts/ の全フォントを EOT 形式で全字埋め込みする（claim-0010）。
+// 生成後、slides/public/fonts/ の全フォントを EOT 形式で全字埋め込みする。
 // 前提: flake devShell（direnv）内で実行し CHROME_PATH が設定されていること。
 import { spawn } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'

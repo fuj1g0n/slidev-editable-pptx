@@ -50,7 +50,7 @@ Slidev で図を描く・PPTX を納品するときはこの手順に従う。
 - 埋め込みフォントは OFL 等の再配布可能ライセンスに限る。受け手が
   PowerPoint (Windows) なら未インストール環境でも表示・編集ともに崩れない。
   LibreOffice / Google Slides は埋め込みフォントを読まないため代替表示になる。
-- PowerPoint 上で入った編集は、ソース（deck.md / claims YAML）へ手動で還元する。
+- PowerPoint 上で入った編集は、ソース（deck.md / 出典記録）へ手動で還元する。
   pptx を直接メンテナンスの対象にしない。
 
 ## 3. PPTX 視覚 QA ループ（editable 変換後に必ず回す）

@@ -172,4 +172,5 @@ converter 側の追加実装は polygon 頂点列の一般化のみで済む。
 - Status qualifier: 実装前の設計固定
 - Related documents: [ADR-0001](0001-slide-architecture.md)、
   [ADR-0004（図形パターン語彙）](0004-shape-pattern-vocabulary.md)、
-  [generic-pptx-walker ADR-0002（契約語彙）](../generic-pptx-walker/adr/0002-contract-vocabulary.md)
+  [generic-pptx-walker ADR-0002（契約語彙）](../generic-pptx-walker/adr/0002-contract-vocabulary.md)、
+  [docs/research/2026-07-07-pptx-approaches.md](../research/2026-07-07-pptx-approaches.md)
