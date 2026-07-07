@@ -38,15 +38,35 @@
 | 表示 | 手段 | 結果 |
 |---|---|---|
 | drawio 素描画 | viewer-static 単体 HTML (テーマ書き換えなし素 XML) | 描画成立、全 189 セル表示 (`out/poc/drawio-standalone.png`) |
-| Slidev | drawio 版 vs 原本のブラウザ screenshot 比較 | **7.56%** 合格 |
-| PDF | `slidev export --per-slide` p1 vs p2 | **7.23%** 合格 |
-| pptx | editable pptx → PowerPoint COM (Windows) PNG export、p1 vs p2 | **3.45%** 合格 |
+| Slidev | drawio 版 vs 原本のブラウザ screenshot 比較 | **5.03%** 合格 |
+| PDF | `slidev export --per-slide` p1 vs p2 | **4.50%** 合格 |
+| pptx | editable pptx → PowerPoint COM (Windows) PNG export、p1 vs p2 | **4.64%** 合格 |
+
+（数値は pixelmatch threshold=0.1。座標規約修正後の再計測値）
 
 変換被覆: **189 セル変換 / 0 ラスタライズ / 0 スキップ**
 （ラスタライズ fallback は経路として実装済みだが、この図では
 全セルが構造変換された）。
 
 ## 3. 得られた知見
+
+### 座標規約: CSS border-box と mxGraph geometry は異なる
+
+- **CSS border-box**: 枠線は矩形の内側。1160x590 の要素は正確に
+  1160x590 px に収まる。
+- **mxGraph geometry**: stroke は輪郭線中心。セル [0,0,1160,590] は
+  各辺 strokeWidth/2 はみ出し、描画境界は 1161x591 になる。
+- viewer の container サイズは `mxGraph.sizeDidChange` が
+  `ceil(max(0,bounds.x)+bounds.width+2*border)` を SVG の min-width に
+  与える（bounds = `getGraphBounds`、`mxShape.augmentBoundingBox` が
+  stroke 付き shape の bbox を strokeWidth/2 拡張）。規約差を放置すると
+  +1px でスクロールバーが出る（overflow は GraphViewer が
+  inline style で auto に後書きする）。
+- 正しい写像は**抽出器側**で行う: 枠付き box は geometry を
+  borderWidth/2 内側に取り（角丸半径も bw/2 減）、弧 (stroke 中心規約の
+  viewBox) も widthPx/2 内側に取る。これで描画ピクセルが CSS と一致し、
+  描画境界 = 宣言サイズ、min-width = 宣言幅で container にちょうど収まる。
+  コンポーネントや CSS での場当たり対処（overflow 上書き等）は不要。
 
 ### viewer-static.min.js の性質
 

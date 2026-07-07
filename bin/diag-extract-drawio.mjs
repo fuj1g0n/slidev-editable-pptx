@@ -111,10 +111,18 @@ function buildDrawio(elements, dg, imageData) {
 
   for (const el of elements) {
     if (el.kind === 'diag-box') {
-      const r = norm(el.rect)
+      let r = norm(el.rect)
+      const bw = el.borderWPx > 0 ? N(el.borderWPx) : 0
+      // 座標規約の変換: walker の rect は CSS border-box（枠は内側）、
+      // mxGraph の stroke は輪郭線中心。geometry を borderWidth/2 だけ
+      // 内側に取ると描画ピクセルが CSS と一致し、描画境界（= viewer の
+      // min-width/min-height の源）も宣言サイズに収まる
+      if (bw > 0) r = { x: N(r.x + bw / 2), y: N(r.y + bw / 2), w: N(r.w - bw), h: N(r.h - bw) }
       const st =
         `rounded=${el.radiusPx > 0 ? 1 : 0};` +
-        (el.radiusPx > 0 ? `absoluteArcSize=1;arcSize=${N(el.radiusPx * 2)};` : '') +
+        (el.radiusPx > 0
+          ? `absoluteArcSize=1;arcSize=${N(Math.max(0, el.radiusPx - bw / 2) * 2)};`
+          : '') +
         `fillColor=${color(el.fill)};` +
         (el.borderWPx > 0
           ? `strokeColor=${color(el.border)};strokeWidth=${N(el.borderWPx)};`
@@ -187,7 +195,11 @@ function buildDrawio(elements, dg, imageData) {
           `</mxGeometry></mxCell>`,
       )
     } else if (el.kind === 'diag-arc') {
-      const r = norm(el.rect)
+      // 弧の rect は SVG viewBox（stroke 込みの外形）。stroke 中心の
+      // geometry へは widthPx/2 の内側取りで変換する
+      let r = norm(el.rect)
+      const aw = N(el.widthPx)
+      r = { x: N(r.x + aw / 2), y: N(r.y + aw / 2), w: N(r.w - aw), h: N(r.h - aw) }
       // mxgraph.basic.arc: startAngle/endAngle は 0..1（0 = 3 時、時計回り）
       const st =
         `shape=mxgraph.basic.arc;startAngle=${N((((el.angleRange[0] % 360) + 360) % 360) / 360)};` +
