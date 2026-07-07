@@ -178,10 +178,11 @@ function walker(sel) {
     w: r.width * scale,
     h: r.height * scale,
   })
-  const isSkipped = (el) =>
-    !!el.closest(
-      'button, nav, [aria-hidden="true"], .slidev-icon-btn, .slidev-nav, .slidev-code-copy',
-    )
+  const isUiSkipped = (el) =>
+    !!el.closest('button, nav, .slidev-icon-btn, .slidev-nav, .slidev-code-copy')
+  // aria-hidden はテキストには適用するが、画像には適用しない。テーマの装飾画像
+  // （cover のタイル群など）は aria-hidden="true" の中に置かれるのが普通のため
+  const isSkipped = (el) => isUiSkipped(el) || !!el.closest('[aria-hidden="true"]')
   const toHex = (rgb) => {
     const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
     if (!m) return null
@@ -189,6 +190,10 @@ function walker(sel) {
     return [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')
   }
   const firstFont = (ff) => ff.split(',')[0].trim().replace(/^["']|["']$/g, '')
+  const tagIsImage = (el) => {
+    const t = el.tagName.toLowerCase()
+    return t === 'img' || t === 'svg'
+  }
 
   // dark テーマの下敷き（--diag-icon-plate）: img に背景色が付いていれば矩形として運ぶ
   const iconPlate = (im) => {
@@ -477,9 +482,31 @@ function walker(sel) {
     }
   }
 
+  // CSS background-image による装飾・メディア画像（co-branding lockup、
+  // ロゴマーク、feature の ::media:: ブロック等）。スライド背景として敷いた
+  // 画像（slideBgImg）・レイアウト要素・図コンポーネント内は除外する
+  for (const el of root.querySelectorAll('*')) {
+    if (el === root || el.classList.contains('slidev-layout')) continue
+    if (isUiSkipped(el) || el.closest('[data-diag="root"]')) continue
+    const st = getComputedStyle(el)
+    const m = st.backgroundImage.match(/url\("?([^")]+)"?\)/)
+    if (!m || m[1] === slideBgImg) continue
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 || r.height === 0) continue
+    elements.push({
+      kind: 'image',
+      rect: rel(r),
+      src: m[1],
+      sizing: st.backgroundSize === 'contain' || st.backgroundSize === 'cover'
+        ? st.backgroundSize
+        : null,
+    })
+  }
+
   const blocks = root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,pre,table,img,svg')
   for (const b of blocks) {
-    if (isSkipped(b)) continue
+    // 画像は aria-hidden（装飾宣言）でも運ぶ。テキスト等は従来通りスキップ
+    if (tagIsImage(b) ? isUiSkipped(b) : isSkipped(b)) continue
     if (b.closest('[data-diag="root"]')) continue // 図コンポーネント内は上で捕捉済み
     const tag = b.tagName.toLowerCase()
     const r = b.getBoundingClientRect()
@@ -675,6 +702,14 @@ try {
             y: px2inY(el.rect.y + pad),
             w: px2inX(el.rect.w - pad * 2),
             h: px2inY(el.rect.h - pad * 2),
+            // CSS background-size: contain/cover 由来の画像はアスペクト比を保つ
+            sizing: el.sizing
+              ? {
+                  type: el.sizing,
+                  w: px2inX(el.rect.w - pad * 2),
+                  h: px2inY(el.rect.h - pad * 2),
+                }
+              : undefined,
           })
         }
       } else if (el.kind === 'diag-box') {
