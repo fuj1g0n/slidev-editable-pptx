@@ -21,6 +21,14 @@ PPTX 視覚 QA を提供する。
 | `docs/generic-pptx-walker/` | 変換器の要求仕様と決定ログ（下位 ADR） |
 | `.apm/skills/slidev-editable-pptx/` | agent skill（作図・PPTX 納品・QA の手順） |
 | `docs/adr/` | 決定ログ（MADR 4.0） |
+| `docs/research/` | editable PPTX 変換方式の調査抜粋アーカイブ |
+| `facts/claims.yaml` | ADR の事実根拠として移設した claims |
+
+## Documentation
+
+- [ADR 一覧](docs/adr/)
+- [PPTX アプローチ調査抜粋](docs/research/pptx-approaches.md)
+- [facts/claims.yaml](facts/claims.yaml)
 
 ## 導入（npm: git URL 依存）
 
