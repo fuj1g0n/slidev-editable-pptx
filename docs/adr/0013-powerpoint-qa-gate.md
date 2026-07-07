@@ -52,3 +52,8 @@ Chosen option: "PowerPoint 実機を最終ゲートに追加", because 成果物
 
 docs/research/2026-07-07-powerpoint-rendering-verification.md（検証ログと
 PowerShell スニペット）。
+
+追記（2026-07-08）: 本ゲートのテストコード化（pixelmatch 差分率 +
+環境検出 skip）は marp-to-editable-pptx の Gate 3 実装を範として行う。
+[調査 2026-07-08 marp 二段テスト輸入](../research/2026-07-08-marp-two-tier-test-import.md)
+を参照。

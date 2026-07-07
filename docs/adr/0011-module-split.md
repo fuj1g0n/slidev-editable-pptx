@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-07-08
 ---
 
@@ -67,3 +67,12 @@ lib/
 凍結方式）を、リポジトリ分離後の現構成に合わせて改訂した。
 requirements [2026-07-08](../requirements/2026-07-08-generic-pptx-walker.md)
 NFR-3/NFR-4、および [ADR-0015](0015-ooxml-postprocess-layer.md)。
+
+テスト戦略は marp-to-editable-pptx の二段構成（JSDOM モック単体 +
+環境ゲート付き実 PowerPoint 視覚回帰）を輸入する。輸入設計と一次ソース
+確認は
+[調査 2026-07-08 marp 二段テスト輸入](../research/2026-07-08-marp-two-tier-test-import.md)、
+比較根拠は
+[調査 2026-07-08 ヒューリスティック品質監査](../research/2026-07-08-heuristics-quality-audit.md)。
+本 ADR のモジュール分割により、段 1 の builder/postprocess テストは
+JSDOM 不要の純関数テストになる。
