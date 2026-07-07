@@ -25,12 +25,12 @@ scripts/editable-pptx/ に次の構成で分割する（仮実装も最初から
 ```
 scripts/editable-pptx/
   walker/            # ブラウザ内で実行されるコード（文字列化して page.evaluate）
-    index.mjs        #   3 層ディスパッチ（ADR-0001 の判定順）
+    index.mjs        #   3 層ディスパッチ（ADR-0007 の判定順）
     contract.mjs     #   Layer 1: data-pptx / data-diag 正規化と解釈
     infer-box.mjs    #   Layer 2: CSS ボックス推論
     infer-text.mjs   #   Layer 2: テキスト runs 抽出
-    infer-svg.mjs    #   Layer 2: SVG サブセット変換（ADR-0003）
-    rasterize.mjs    #   Layer 3: 判定 rasterizeReason（ADR-0004）
+    infer-svg.mjs    #   Layer 2: SVG サブセット変換（ADR-0009）
+    rasterize.mjs    #   Layer 3: 判定 rasterizeReason（ADR-0010）
   builder.mjs        # 抽出 JSON → PptxGenJS 呼び出し（Node 側）
   fonts.mjs          # フォント EOT 埋め込み（既存処理の移設）
   adapter-slidev.mjs # dev server 起動・print ビュー巡回・領域スクリーンショット

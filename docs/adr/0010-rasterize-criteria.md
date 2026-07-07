@@ -27,7 +27,7 @@ Chosen option: "rasterizeReason(el, style) による検出条件と可視化", b
   3. `background-image` にグラデーションまたは画像
   4. `transform` が単位行列・純平行移動以外（回転・skew・scale）
   5. `clip-path` が none 以外
-  6. ADR-0003 のサブセット外要素を含む SVG
+  6. ADR-0009 のサブセット外要素を含む SVG
   7. 契約による明示指定 `data-pptx="rasterize"`
 - 変換ログに `rasterized: <セレクタ相当> reason=<番号と名称>` を必ず出力し、
   終了時に統計（ネイティブ図形数 / 画像数 / ラスタライズ数）を出す。
