@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 図の例外経路（drawio → SVG）の埋め込み条件を検証する。
 // 対象: slides/public/figures/*.svg と figures/*.drawio の対応
 //

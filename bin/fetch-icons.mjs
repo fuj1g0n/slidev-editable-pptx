@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 公式アイコンセット（Azure / Microsoft Entra）とブランドロゴを取得して
 // slides/public/icons/ に展開する。
 // - Azure Architecture Icons V23（claim-0019）

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // drawio からエクスポートした SVG を、スライド・PPTX に安全に埋め込める形へ正規化する。
 // 使い方: node scripts/figure-normalize.mjs slides/public/figures/foo.svg
 //

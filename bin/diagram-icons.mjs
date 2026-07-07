@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Vue コンポーネント図で使う概念アイコン（Octicons）を @iconify-json/octicon
 // から抽出して単色 SVG として書き出す。色は DESIGN.md の foreground トークン。
 // dark テーマ用に白の octicons-dark/ も併せて生成する（切替は --diag-icon-set。ADR-0004）。

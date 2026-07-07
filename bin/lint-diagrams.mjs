@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 図（Vue コンポーネント）のジオメトリ lint。slides/**/*.md の <Diag> ブロックを
 // 静的に解析し、DESIGN.md の余白規範を検査する:
 //   1. 要素はキャンバス（Diag の w×h）からはみ出さない
