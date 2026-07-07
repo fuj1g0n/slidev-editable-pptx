@@ -94,6 +94,10 @@ Chosen option: 「図 1 枚 = 1 スキーマ付きモデルファイル + `<Diag
   の羅列）になり、「意味論を理解したうえで再構成」（UC-D1）に不向き。
 - Neutral, because 正準を自前スキーマにしたうえで、これらエディタとの
   相互変換を周辺ツールとして置くことは妨げない。
+- Neutral, because この評価は「Diag 語彙の搬送形式として使う」場合の
+  もの。drawio 自体の表現力を被覆対象とする別方向は
+  [ADR-0019](0019-drawio-second-contract-entrance.md) が第 2 の入口
+  として扱う（本 ADR と併存し、正準の座を争わない）。
 
 ## More Information
 
