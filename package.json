@@ -19,14 +19,18 @@
     "lint-figures": "bin/lint-figures.mjs",
     "figure-normalize": "bin/figure-normalize.mjs",
     "fetch-icons": "bin/fetch-icons.mjs",
-    "diagram-icons": "bin/diagram-icons.mjs"
+    "diagram-icons": "bin/diagram-icons.mjs",
+    "diag-extract-drawio": "bin/diag-extract-drawio.mjs"
   },
   "exports": {
-    "./components/*": "./components/*"
+    "./components/*": "./components/*",
+    "./lib/*": "./lib/*"
   },
   "files": [
     "bin/",
     "components/",
+    "lib/",
+    "vendor/",
     "README.md"
   ],
   "engines": {

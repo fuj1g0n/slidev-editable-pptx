@@ -11,8 +11,11 @@ PPTX 視覚 QA を提供する。
 
 | パス | 内容 |
 |---|---|
-| `components/` | Diag\* Vue コンポーネント（Slidev addon として自動登録）+ fills.js / icons.js |
+| `components/` | Diag\* / DrawioDiag Vue コンポーネント（Slidev addon として自動登録）+ fills.js / icons.js |
 | `bin/slidev-editable-pptx.mjs` | dev server の print ビューを Chromium で実測し、ネイティブ図形の PPTX を生成。フォント EOT 全字埋め込み |
+| `lib/walker.mjs` | ブラウザ内 walker（DOM / drawio 構造 → 中間語彙）。bin と抽出器が共用 |
+| `bin/diag-extract-drawio.mjs` | 既存 Diag ページを実測して mxGraph XML + テーマ色対応表を抽出（ADR-0019 PoC） |
+| `vendor/viewer-static.min.js` | drawio 公式ビューア（Apache-2.0, vendored）。`DrawioDiag` のライブ描画に使用 |
 | `bin/pptx-qa.sh` | LibreOffice → PDF → pdftoppm で PPTX をページ PNG 化する視覚 QA |
 | `bin/lint-diagrams.mjs` | `<Diag>` ブロックの余白・整列規範を静的検査 |
 | `bin/lint-figures.mjs` / `bin/figure-normalize.mjs` | drawio → SVG 例外経路の検証・正規化 |
