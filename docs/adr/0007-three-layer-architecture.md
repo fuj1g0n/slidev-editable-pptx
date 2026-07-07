@@ -1,6 +1,6 @@
 ---
 status: proposed
-date: 2026-07-06
+date: 2026-07-08
 ---
 
 # 3 層フォールバック構成（宣言契約 > CSS 推論 > ラスタライズ）
@@ -38,3 +38,17 @@ Chosen option: "3 層フォールバック構成", because 要素ごとに次の
   品質劣化は統計とログで可視化される（FR-8, FR-10）。
 - Bad, because 判定順が仕様の中心になるため、層間の判定条件はコードではなく
   ディスパッチテーブル 1 箇所に集約する（design.md）。
+
+## More Information
+
+2026-07-08 の再調査で妥当性を再確認した:
+
+- 純推論型の限界の追加実証: 直接競合 dom-to-pptx（DOM 実測 → PptxGenJS）も
+  グラデーション・SVG・グループの 3 点で native 化に届かない
+  （[research 2026-07-08](../research/2026-07-08-pptx-tool-landscape.md) §3.1, §4）。
+- Layer 1（宣言契約）の裏付け: native 忠実性を達成している Figma → PPTX
+  プラグイン群は、レンダリング結果の実測ではなく Plugin API の構造化
+  ジオメトリを読む方式。Layer 1 は同じ「構造データを渡す」経路の HTML 版
+  である（同 §3.5）。
+- 要求側の根拠: [requirements 2026-07-08](../requirements/2026-07-08-generic-pptx-walker.md)
+  §3（要素クラス別トレードオフ）が層構成の前提を規定する。
