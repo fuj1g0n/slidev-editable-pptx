@@ -19,7 +19,7 @@ PPTX 視覚 QA を提供する。
 | `bin/fetch-icons.mjs` / `bin/diagram-icons.mjs` | 公式アイコンセットの取得と単色 SVG 生成 |
 | `fixture-components.md` | 図形パターン fixture（描画 + editable PPTX 変換の検証。`npm run dev:fixture` / `fixture:pdf` / `fixture:pptx`） |
 | `docs/diag-css-vars.md` | `--diag-*` CSS 変数契約（値は消費側テーマが持つ） |
-| `docs/generic-pptx-walker/` | 汎用 walker の要求仕様（決定は `docs/adr/` に統合） |
+| `docs/requirements/` | 要求調査。日付付きスナップショット（ADR の前段資料） |
 | `.apm/skills/slidev-editable-pptx/` | agent skill（作図・PPTX 納品・QA の手順） |
 | `docs/research/` | 調査記録。ADR を裏付ける日付付き不変スナップショット |
 | `docs/adr/` | 決定ログ（MADR 4.0）。調査から採用した決定を記録 |

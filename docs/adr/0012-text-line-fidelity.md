@@ -50,5 +50,5 @@ editable PPTX の目的そのものを壊す。
 ## More Information
 
 実測の根拠: docs/research/2026-07-07-powerpoint-rendering-verification.md。
-generic-pptx-walker requirements FR-4（テキスト runs 実測）を精緻化する
+要求調査（docs/requirements/2026-07-06-generic-pptx-walker.md）FR-4（テキスト runs 実測）を精緻化する
 決定であり、既存 ADR とは矛盾しない。

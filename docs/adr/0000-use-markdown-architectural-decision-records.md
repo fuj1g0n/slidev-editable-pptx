@@ -34,3 +34,7 @@ Chosen option: "MADR 4.0", because 分割元 tech-slide と形式を統一し、
 ## More Information
 
 テンプレート: [MADR 4.0](https://adr.github.io/madr/)。
+
+「`docs/generic-pptx-walker/adr/` を独立した下位ログとして維持する」の一項は
+[ADR-0014](0014-single-adr-log-and-requirements-dir.md) により廃止された
+（docs/adr へ統合）。
