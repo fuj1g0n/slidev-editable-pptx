@@ -1,0 +1,8 @@
+lockfile_version: '1'
+generated_at: '2026-07-07T06:44:04.497984+00:00'
+dependencies: []
+local_deployed_files:
+- .agents/skills/slidev-editable-pptx
+- .agents/skills/slidev-editable-pptx/SKILL.md
+local_deployed_file_hashes:
+  .agents/skills/slidev-editable-pptx/SKILL.md: sha256:9b73d7deb126878905a382a7ab156f6b792f103d12b6dec97f3a38be487fc48e

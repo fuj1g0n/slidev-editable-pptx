@@ -1,0 +1,5 @@
+name: slidev-editable-pptx
+version: 0.1.0
+description: editable PPTX に変換可能な Slidev を構築する仕組み（Diag* コンポーネント + 変換器 + 図 lint）
+license: MIT
+target: copilot

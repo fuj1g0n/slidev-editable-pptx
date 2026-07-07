@@ -1,0 +1,45 @@
+{
+  "name": "slidev-editable-pptx",
+  "version": "0.1.0",
+  "private": false,
+  "description": "editable PPTX に変換可能な Slidev を構築する仕組み: Diag* 図コンポーネント（Slidev addon）+ HTML 実測 → ネイティブ図形再構築の変換器 + 図ジオメトリ lint",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fuj1g0n/slidev-editable-pptx.git"
+  },
+  "keywords": [
+    "slidev-addon"
+  ],
+  "bin": {
+    "slidev-editable-pptx": "bin/slidev-editable-pptx.mjs",
+    "pptx-qa": "bin/pptx-qa.sh",
+    "lint-diagrams": "bin/lint-diagrams.mjs",
+    "lint-figures": "bin/lint-figures.mjs",
+    "figure-normalize": "bin/figure-normalize.mjs",
+    "fetch-icons": "bin/fetch-icons.mjs",
+    "diagram-icons": "bin/diagram-icons.mjs"
+  },
+  "exports": {
+    "./components/*": "./components/*"
+  },
+  "files": [
+    "bin/",
+    "components/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20",
+    "slidev": ">=52"
+  },
+  "dependencies": {
+    "@iconify-json/octicon": "^1.2.29",
+    "fflate": "^0.8.3",
+    "fonteditor-core": "^2.6.3",
+    "jszip": "^3.10.1",
+    "pptxgenjs": "^4.0.1",
+    "puppeteer-core": "^25.3.0",
+    "subset-font": "^2.5.0"
+  }
+}
