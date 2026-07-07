@@ -124,6 +124,48 @@ async function embedFonts(pptx) {
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
 }
 
+// pptxgenjs は SVG 画像に svgBlip + PNG フォールバックの組を書くが、
+// フォールバック側の中身は SVG バイト列のコピーのまま（ラスタライズしない）。
+// PowerPoint はまずフォールバック PNG をデコードするため、不正 PNG と
+// 判定されてアイコンが表示されない。開いている Chromium で本物の PNG に
+// ラスタライズして置換する。
+async function fixSvgPngFallbacks(pptx, page) {
+  const zip = await JSZip.loadAsync(pptx)
+  const targets = zip.file(/^ppt\/media\/.*\.png$/)
+  let fixed = 0
+  for (const entry of targets) {
+    const bytes = await entry.async('nodebuffer')
+    const head = bytes.subarray(0, 512).toString('utf8')
+    if (!/<svg[\s>]/.test(head)) continue
+    const b64 = await page.evaluate(async (svg) => {
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+      const img = new Image()
+      await new Promise((res, rej) => {
+        img.onload = res
+        img.onerror = () => rej(new Error('SVG の読み込みに失敗'))
+        img.src = url
+      })
+      // viewBox から縦横比を取り、長辺 512px でラスタライズする
+      const vb = svg.match(/viewBox="\s*[\d.-]+[\s,]+[\d.-]+[\s,]+([\d.]+)[\s,]+([\d.]+)/)
+      const vw = vb ? Number(vb[1]) : img.naturalWidth || 300
+      const vh = vb ? Number(vb[2]) : img.naturalHeight || 150
+      const scale = 512 / Math.max(vw, vh, 1)
+      const w = Math.max(1, Math.round(vw * scale))
+      const h = Math.max(1, Math.round(vh * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(url)
+      return canvas.toDataURL('image/png').split(',')[1]
+    }, bytes.toString('utf8'))
+    zip.file(entry.name, Buffer.from(b64, 'base64'))
+    fixed += 1
+  }
+  console.log(`PNG フォールバックをラスタライズ: ${fixed} 件`)
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
+}
+
 // ---- in-page walker（ブラウザ内で実行） ----
 function walker(sel) {
   const root = document.querySelector(sel)
@@ -869,10 +911,11 @@ try {
     console.log(`slide ${n}: ${data.elements.length} 要素, bg=#${data.slideBg}`)
   }
 
+  const raw = await pptx.write({ outputType: 'nodebuffer' })
+  const withFallbacks = await fixSvgPngFallbacks(raw, page)
   await browser.close()
 
-  const raw = await pptx.write({ outputType: 'nodebuffer' })
-  const buf = await embedFonts(raw)
+  const buf = await embedFonts(withFallbacks)
   await mkdir('out', { recursive: true })
   await writeFile(OUT, buf)
   console.log(
