@@ -55,3 +55,8 @@ Layer 2 の SVG 変換対象は次のサブセットに限定する。
 - Slidev `<Arrow>` の DOM 構造（絶対配置 SVG + line + marker-end polygon +
   透明な当たり判定線）を一次ソースで確認。当たり判定線
   （stroke: transparent, width 20）は出力から除外する必要がある。
+- 既存 SVG → DrawingML 変換器（svg2pptx 系）の組み込みは
+  [research 2026-07-08 (svg-to-drawingml-integration)](../research/2026-07-08-svg-to-drawingml-integration.md)
+  で検討し不採用。marker 写像を持つ候補が存在せず本 ADR の中核は外部化
+  できない一方、曲線拡張は arc→cubic 正規化アルゴリズムの移植
+  （MIT 参照実装あり）で自前実装可能と確認。
