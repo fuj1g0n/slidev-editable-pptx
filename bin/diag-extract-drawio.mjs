@@ -100,6 +100,9 @@ function buildDrawio(elements, dg, imageData, background) {
   let id = 1
   const cells = []
   const usedColors = new Set()
+  // テーマ切替情報（theme.json 用）: セル id → 正準アイコンパス、plate セル id
+  const icons = {}
+  const plates = []
   const color = (c) => {
     if (c) usedColors.add(`#${c.toLowerCase()}`)
     return hex(c)
@@ -115,10 +118,12 @@ function buildDrawio(elements, dg, imageData, background) {
   }
 
   const vertex = (rect, style, value = '') => {
+    const cid = `c${id++}`
     cells.push(
-      `<mxCell id="c${id++}" value="${esc(value)}" style="${esc(style)}" vertex="1" parent="1">` +
+      `<mxCell id="${cid}" value="${esc(value)}" style="${esc(style)}" vertex="1" parent="1">` +
         `<mxGeometry x="${rect.x}" y="${rect.y}" width="${rect.w}" height="${rect.h}" as="geometry"/></mxCell>`,
     )
+    return cid
   }
   const fontStyle = (f) =>
     `fontFamily=${f.font};fontSize=${N(f.sizePx)};fontColor=${color(f.color)};` +
@@ -165,9 +170,13 @@ function buildDrawio(elements, dg, imageData, background) {
     } else if (el.kind === 'image') {
       let r = norm(el.rect)
       if (el.plate) {
-        vertex(
-          fit(r),
-          `rounded=1;absoluteArcSize=1;arcSize=${N(el.plate.radiusPx * 2)};fillColor=${color(el.plate.color)};strokeColor=none;html=0;`,
+        // plate（下敷き）はテーマ依存（--diag-icon-plate 未定義のテーマでは
+        // 存在しない）。id を記録し、描画側でテーマに合わせて着色/除去する
+        plates.push(
+          vertex(
+            fit(r),
+            `rounded=1;absoluteArcSize=1;arcSize=${N(el.plate.radiusPx * 2)};fillColor=${color(el.plate.color)};strokeColor=none;html=0;`,
+          ),
         )
         const p = N(el.plate.padPx)
         r = { x: N(r.x + p), y: N(r.y + p), w: N(r.w - 2 * p), h: N(r.h - 2 * p) }
@@ -175,7 +184,10 @@ function buildDrawio(elements, dg, imageData, background) {
       // drawio 単体でも表示できるよう data URI（drawio 慣行の base64）で埋め込む
       const src = el.src?.startsWith('http') ? new URL(el.src).pathname : el.src
       const uri = imageData.get(src) ?? src
-      vertex(r, `shape=image;imageAspect=0;image=${uri};`)
+      const cid = vertex(r, `shape=image;imageAspect=0;image=${uri};`)
+      // テーマ切替で差し替わる単色 octicon は正準パス（light 版）を記録する
+      if (src?.includes('/icons/'))
+        icons[cid] = src.replace('/icons/octicons-dark/', '/icons/octicons/')
     } else if (el.kind === 'diag-chevron') {
       const r = fit(norm(el.rect))
       const n = N(el.notchPx / r.w)
@@ -232,7 +244,7 @@ function buildDrawio(elements, dg, imageData, background) {
     `<root><mxCell id="0"/><mxCell id="1" parent="0"/>` +
     cells.join('') +
     `</root></mxGraphModel></diagram></mxfile>`
-  return { xml, usedColors }
+  return { xml, usedColors, icons, plates }
 }
 
 try {
@@ -273,6 +285,9 @@ try {
         const val = cs.getPropertyValue(v).trim()
         if (/^#[0-9a-fA-F]{6}$/.test(val)) theme[v] = val.toLowerCase()
       }
+      const iconSet =
+        getComputedStyle(document.documentElement).getPropertyValue('--diag-icon-set').trim() ||
+        'light'
       return {
         dg: {
           x: (r.left - rootRect.left) * scale,
@@ -282,6 +297,7 @@ try {
         },
         theme,
         bg,
+        iconSet,
       }
     },
     sel,
@@ -314,7 +330,7 @@ try {
   }
   console.log(`画像埋め込み: ${imageData.size} 種`)
 
-  const { xml, usedColors } = buildDrawio(els, info.dg, imageData, info.bg)
+  const { xml, usedColors, icons, plates } = buildDrawio(els, info.dg, imageData, info.bg)
 
   // テーマ写像: 使用色のうち CSS 変数値と一致するものを対応表にする
   const byValue = {}
@@ -330,10 +346,13 @@ try {
   await writeFile(OUT, xml)
   await writeFile(
     `${OUT}.theme.json`,
-    JSON.stringify({ palette, unmapped }, null, 2) + '\n',
+    JSON.stringify({ palette, unmapped, iconSet: info.iconSet, icons, plates }, null, 2) + '\n',
   )
   console.log(`書き出し: ${OUT} / ${OUT}.theme.json`)
-  console.log(`テーマ写像: ${Object.keys(palette).length} 色, 未対応 ${unmapped.length} 色 ${unmapped.join(' ')}`)
+  console.log(
+    `テーマ写像: ${Object.keys(palette).length} 色, 未対応 ${unmapped.length} 色 ${unmapped.join(' ')}, ` +
+      `アイコン ${Object.keys(icons).length}, plate ${plates.length}`,
+  )
 } finally {
   stopServer()
 }

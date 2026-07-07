@@ -113,6 +113,31 @@ ECMA-376 Part 1 の `<a:ln>`（shape outline）は `algn` 属性
 - 複合線（`cmpd`: 二重線等）や線端処理は別途対応が要るが、
   座標規約そのものは上記で閉じる。
 
+### テーマ適応（palette / iconSet / icons / plates）
+
+図はダークテーマで抽出されるが、Slidev 埋め込みはテーマ切替
+（背景・テーマ色・白黒アイコン・plate 下敷き）へ追従する必要がある。
+`<OUT>.theme.json` に抽出時の情報を記録し、DrawioDiag が mount 時に
+現テーマへ再解決する:
+
+- **palette**: XML 中の正準 hex → CSS 変数名。mount 時に現テーマの
+  実値へ文字列置換（`background` 属性も対象）。base64 data URI に
+  `#` 付き hex は現れないため誤置換の危険はない。
+- **iconSet**: 抽出時の `--diag-icon-set`。現テーマと一致すれば
+  焼き込み data URI をそのまま使う（オフライン正準表示）。
+- **icons**: セル id → 正準アイコンパス（`/icons/octicons-dark/` →
+  `/icons/octicons/` に正規化）。テーマが異なる場合のみ、ADR-0004 の
+  `resolveIconSrc` と同じ規則でテーマ側パスへ再解決し、セル style の
+  `image=` を差し替える。**mxGraph は相対パスを imageBasePath
+  (app.diagrams.net) 基準で解決するため、現オリジンの絶対 URL に
+  すること**（相対のままだと全アイコンが消える）。
+- **plates**: ブランドロゴ下敷きのセル id 一覧。現テーマの
+  `--diag-icon-plate`（`var()` 間接参照も解決）が hex なら fillColor を
+  差し替え、未定義（ライトテーマ）なら XML DOM からセルごと除去する。
+
+検証: github-default-light の別デッキで原本と比較し pixelmatch 3.39%
+（ダークと同値）。ダーク側も 3.39% を維持（非回帰）。
+
 ### viewer-static.min.js の性質
 
 - `GraphViewer(container, xml, {nav:false, 'auto-fit':false, zoom:'1', ...})`

@@ -62,6 +62,49 @@ onMounted(async () => {
   // 立てて（エラー印付き）walker を待たせない
   try {
     const doc = window.mxUtils.parseXml(xml)
+    const cellOf = (id) => doc.querySelector(`mxCell[id="${id}"]`)
+
+    // アイコンのテーマ適応（ADR-0004 の drawio 経路版）: 抽出時に焼き込まれた
+    // 単色 octicon を、現テーマの --diag-icon-set に従い正準（light）/dark 版へ
+    // 差し替える。パス参照にすることで dev server から現テーマの実体を取る
+    const rootCs = getComputedStyle(document.documentElement)
+    const iconSet = rootCs.getPropertyValue('--diag-icon-set').trim() || 'light'
+    if (theme?.icons && iconSet !== (theme.iconSet ?? 'dark')) {
+      for (const [id, canonical] of Object.entries(theme.icons)) {
+        const cell = cellOf(id)
+        if (!cell) continue
+        const src =
+          iconSet === 'dark'
+            ? canonical.replace('/icons/octicons/', '/icons/octicons-dark/')
+            : canonical
+        // mxGraph は相対パスを imageBasePath (diagrams.net) 基準で解決するため
+        // 現オリジンの絶対 URL にする
+        const abs = new URL(src, window.location.origin).href
+        cell.setAttribute(
+          'style',
+          cell.getAttribute('style').replace(/image=[^;]*;/, `image=${abs};`),
+        )
+      }
+    }
+    // plate（ロゴの下敷き）はテーマ依存: --diag-icon-plate 未定義のテーマでは
+    // 除去、定義されていればその実値で着色する
+    if (theme?.plates?.length) {
+      const plateColor = rootCs.getPropertyValue('--diag-icon-plate').trim()
+      const resolved = plateColor.startsWith('var(')
+        ? rootCs.getPropertyValue(plateColor.slice(4, -1).trim()).trim()
+        : plateColor
+      for (const id of theme.plates) {
+        const cell = cellOf(id)
+        if (!cell) continue
+        if (/^#[0-9a-fA-F]{6}$/.test(resolved))
+          cell.setAttribute(
+            'style',
+            cell.getAttribute('style').replace(/fillColor=[^;]*;/, `fillColor=${resolved};`),
+          )
+        else cell.remove()
+      }
+    }
+
     const viewer = new window.GraphViewer(el.value, doc.documentElement, {
       nav: false,
       highlight: 'none',
