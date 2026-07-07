@@ -17,6 +17,7 @@ PPTX 視覚 QA を提供する。
 | `bin/lint-diagrams.mjs` | `<Diag>` ブロックの余白・整列規範を静的検査 |
 | `bin/lint-figures.mjs` / `bin/figure-normalize.mjs` | drawio → SVG 例外経路の検証・正規化 |
 | `bin/fetch-icons.mjs` / `bin/diagram-icons.mjs` | 公式アイコンセットの取得と単色 SVG 生成 |
+| `fixture-components.md` | 図形パターン fixture（描画 + editable PPTX 変換の検証。`npm run dev:fixture` / `fixture:pdf` / `fixture:pptx`） |
 | `docs/diag-css-vars.md` | `--diag-*` CSS 変数契約（値は消費側テーマが持つ） |
 | `docs/generic-pptx-walker/` | 変換器の要求仕様と決定ログ（下位 ADR） |
 | `.apm/skills/slidev-editable-pptx/` | agent skill（作図・PPTX 納品・QA の手順） |

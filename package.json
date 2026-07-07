@@ -41,5 +41,15 @@
     "pptxgenjs": "^4.0.1",
     "puppeteer-core": "^25.3.0",
     "subset-font": "^2.5.0"
+  },
+  "scripts": {
+    "dev:fixture": "slidev fixture-components.md",
+    "fixture:pdf": "slidev export fixture-components.md --format pdf --output out/fixture-components.pdf --executable-path \"$CHROME_PATH\"",
+    "fixture:pptx": "SLIDES_ENTRY=fixture-components.md OUT=out/fixture-components-editable.pptx EMBED_FONTS=[] node bin/slidev-editable-pptx.mjs"
+  },
+  "devDependencies": {
+    "@slidev/cli": "^52.16.0",
+    "@slidev/theme-default": "^0.25.0",
+    "playwright-chromium": "^1.61.1"
   }
 }
