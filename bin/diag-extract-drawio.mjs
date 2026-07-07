@@ -89,6 +89,13 @@ const esc = (s) =>
 const hex = (c) => (c ? `#${c.toLowerCase()}` : 'none')
 const N = (v) => Math.round(v * 100) / 100
 
+// mxGraph の crisp 描画規約 (mxShape.getSvgScreenOffset): round(strokeWidth×scale)
+// が奇数の shape は SVG 側で translate(0.5,0.5) される。strokeColor=none でも
+// style の strokeWidth（無指定は 1）で判定される点に注意。scale=1 契約なので、
+// geometry は「塗り位置 − stroke/2 − このオフセット」で出せば描画ピクセルが
+// CSS 実測と一致し、塗り境界がページ矩形に収まる
+const crispOffset = (sw) => (Math.max(1, Math.round(sw || 1)) % 2 === 1 ? 0.5 : 0)
+
 function buildDrawio(elements, dg, imageData) {
   let id = 1
   const cells = []
@@ -98,6 +105,14 @@ function buildDrawio(elements, dg, imageData) {
     return hex(c)
   }
   const norm = (r) => ({ x: N(r.x - dg.x), y: N(r.y - dg.y), w: N(r.w), h: N(r.h) })
+  // 塗り矩形（painted bbox）→ geometry。stroke 有りは輪郭線中心へ sw/2 内側取り、
+  // さらに crisp オフセット分を引く（strokeColor=none でも style の strokeWidth
+  // 既定値 1 でオフセット判定される）
+  const fit = (r, sw = 1, stroked = false) => {
+    const o = crispOffset(sw)
+    const i = stroked ? sw / 2 : 0
+    return { x: N(r.x + i - o), y: N(r.y + i - o), w: N(r.w - 2 * i), h: N(r.h - 2 * i) }
+  }
 
   const vertex = (rect, style, value = '') => {
     cells.push(
@@ -111,13 +126,12 @@ function buildDrawio(elements, dg, imageData) {
 
   for (const el of elements) {
     if (el.kind === 'diag-box') {
-      let r = norm(el.rect)
       const bw = el.borderWPx > 0 ? N(el.borderWPx) : 0
       // 座標規約の変換: walker の rect は CSS border-box（枠は内側）、
-      // mxGraph の stroke は輪郭線中心。geometry を borderWidth/2 だけ
-      // 内側に取ると描画ピクセルが CSS と一致し、描画境界（= viewer の
+      // mxGraph の stroke は輪郭線中心 + crisp オフセット。fit で geometry に
+      // 直すと描画ピクセルが CSS と一致し、塗り境界（= viewer の
       // min-width/min-height の源）も宣言サイズに収まる
-      if (bw > 0) r = { x: N(r.x + bw / 2), y: N(r.y + bw / 2), w: N(r.w - bw), h: N(r.h - bw) }
+      const r = fit(norm(el.rect), bw || 1, bw > 0)
       const st =
         `rounded=${el.radiusPx > 0 ? 1 : 0};` +
         (el.radiusPx > 0
@@ -152,7 +166,7 @@ function buildDrawio(elements, dg, imageData) {
       let r = norm(el.rect)
       if (el.plate) {
         vertex(
-          r,
+          fit(r),
           `rounded=1;absoluteArcSize=1;arcSize=${N(el.plate.radiusPx * 2)};fillColor=${color(el.plate.color)};strokeColor=none;html=0;`,
         )
         const p = N(el.plate.padPx)
@@ -163,7 +177,7 @@ function buildDrawio(elements, dg, imageData) {
       const uri = imageData.get(src) ?? src
       vertex(r, `shape=image;imageAspect=0;image=${uri};`)
     } else if (el.kind === 'diag-chevron') {
-      const r = norm(el.rect)
+      const r = fit(norm(el.rect))
       const n = N(el.notchPx / r.w)
       const font =
         `html=0;align=center;verticalAlign=middle;` + (el.label ? fontStyle(el.label) : '')
@@ -176,7 +190,9 @@ function buildDrawio(elements, dg, imageData) {
           `fillColor=${color(el.fill)};strokeColor=none;${font}`
       vertex(r, st, el.label?.text ?? '')
     } else if (el.kind === 'diag-edge') {
-      const pts = el.points.map((p) => ({ x: N(p.x - dg.x), y: N(p.y - dg.y) }))
+      // 点列は線の中心。crisp オフセット分を引いて描画位置を実測に合わせる
+      const eo = crispOffset(el.widthPx)
+      const pts = el.points.map((p) => ({ x: N(p.x - dg.x - eo), y: N(p.y - dg.y - eo) }))
       const st =
         `html=0;rounded=1;arcSize=6;strokeColor=${color(el.color)};strokeWidth=${N(el.widthPx)};` +
         (el.noArrow ? 'endArrow=none;' : 'endArrow=classic;endFill=1;endSize=4;') +
@@ -196,10 +212,9 @@ function buildDrawio(elements, dg, imageData) {
       )
     } else if (el.kind === 'diag-arc') {
       // 弧の rect は SVG viewBox（stroke 込みの外形）。stroke 中心の
-      // geometry へは widthPx/2 の内側取りで変換する
-      let r = norm(el.rect)
+      // geometry へ widthPx/2 の内側取り + crisp オフセット補正で変換する
       const aw = N(el.widthPx)
-      r = { x: N(r.x + aw / 2), y: N(r.y + aw / 2), w: N(r.w - aw), h: N(r.h - aw) }
+      const r = fit(norm(el.rect), aw, true)
       // mxgraph.basic.arc: startAngle/endAngle は 0..1（0 = 3 時、時計回り）
       const st =
         `shape=mxgraph.basic.arc;startAngle=${N((((el.angleRange[0] % 360) + 360) % 360) / 360)};` +

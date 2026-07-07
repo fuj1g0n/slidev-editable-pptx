@@ -17,6 +17,7 @@
     "pptx-qa": "bin/pptx-qa.sh",
     "lint-diagrams": "bin/lint-diagrams.mjs",
     "lint-figures": "bin/lint-figures.mjs",
+    "lint-drawio-bounds": "bin/lint-drawio-bounds.mjs",
     "figure-normalize": "bin/figure-normalize.mjs",
     "fetch-icons": "bin/fetch-icons.mjs",
     "diagram-icons": "bin/diagram-icons.mjs",

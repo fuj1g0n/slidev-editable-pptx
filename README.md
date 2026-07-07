@@ -19,6 +19,7 @@ PPTX 視覚 QA を提供する。
 | `bin/pptx-qa.sh` | LibreOffice → PDF → pdftoppm で PPTX をページ PNG 化する視覚 QA |
 | `bin/lint-diagrams.mjs` | `<Diag>` ブロックの余白・整列規範を静的検査 |
 | `bin/lint-figures.mjs` / `bin/figure-normalize.mjs` | drawio → SVG 例外経路の検証・正規化 |
+| `bin/lint-drawio-bounds.mjs` | `.drawio` の塗り境界検査（ページ矩形からのはみ出しをエンジン実値で検出） |
 | `bin/fetch-icons.mjs` / `bin/diagram-icons.mjs` | 公式アイコンセットの取得と単色 SVG 生成 |
 | `fixture-components.md` | 図形パターン fixture（描画 + editable PPTX 変換の検証。`npm run dev:fixture` / `fixture:pdf` / `fixture:pptx`） |
 | `docs/diag-css-vars.md` | `--diag-*` CSS 変数契約（値は消費側テーマが持つ） |
@@ -53,6 +54,8 @@ addons:
 # 図のジオメトリ lint / drawio 例外経路の検証
 npx lint-diagrams
 npx lint-figures
+# .drawio 図の塗り境界 lint（CHROME_PATH 必須）
+npx lint-drawio-bounds
 
 # アイコン取得（slides/public/icons/ へ展開。冪等）
 npx fetch-icons && npx diagram-icons
