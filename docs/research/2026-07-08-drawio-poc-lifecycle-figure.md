@@ -79,6 +79,39 @@
   クリップされ半輝度（欠けて見える）になる。`lint-drawio-bounds` が
   この描き方（塗りがページ矩形を超えるセル）をエンジン実値
   （`shape.boundingBox` + `getSvgScreenOffset`）で検出する。
+- なお drawio 本体では pageWidth/pageHeight は印刷ガイドであって
+  クリップ境界ではない（ページ外への描画は合法で、エクスポートも
+  塗り込みのコンテンツ境界基準）。「ページ外の塗り = 欠け」は
+  DrawioDiag の埋め込み契約（ページ == 宣言サイズの container +
+  overflow hidden）が持ち込む本プロジェクト独自の制約であり、
+  linter はその契約違反を検査するもの。
+
+### pptx (DrawingML) の枠線規約 — 将来の pptx → drawio 取り込みへの含意
+
+ECMA-376 Part 1 の `<a:ln>`（shape outline）は `algn` 属性
+（ST_PenAlignment）で枠線の位置を規定する。値は 2 つのみ:
+
+| algn | 意味 | 対応する規約 |
+|---|---|---|
+| `ctr`（既定） | 輪郭線中心。線幅の半分ずつ内外にまたがる | mxGraph geometry と同一 |
+| `in` | 全て内側 | CSS border-box と同一 |
+
+- **既定 (`ctr`) の shape は stroke/2 の内側取りが不要**。DrawingML の
+  矩形をそのまま mxGraph geometry へ写せる。`algn="in"` が明示された
+  shape にのみ CSS と同じ w/2 補正を適用する。
+- **crisp オフセット補正は出自に依らず必要**。mxGraph が描画時に行う
+  ものだからである（`geometry = 輪郭線中心位置 − crispOffset`）。
+  ただし pptx の座標は EMU（1pt = 12700 EMU）の連続値で、線幅も
+  0.75pt = 1px 等の非整数が普通のため、CSS 抽出ほどピクセル整列が
+  効く場面は少ない。
+- **境界クリップの挙動も一致**: PowerPoint もスライドショー・画像
+  エクスポート時はスライド矩形でクリップする（編集ビューでは見える）。
+  端に置いた `ctr` 枠線が半分欠けるのは PowerPoint でも起きる。
+  そのような pptx を取り込むと `lint-drawio-bounds` が検出するため、
+  「原本の欠けを忠実に再現する」か「reject して直させる」かが
+  取り込みポリシーの論点になる。
+- 複合線（`cmpd`: 二重線等）や線端処理は別途対応が要るが、
+  座標規約そのものは上記で閉じる。
 
 ### viewer-static.min.js の性質
 
