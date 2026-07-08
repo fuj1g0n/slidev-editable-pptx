@@ -4,6 +4,7 @@
 // labelPos="top-left" でゾーン（枠上部にラベル）、既定はノード（中央）。
 import { computed, inject, onMounted } from 'vue'
 import { resolveIconSrc } from './icons.js'
+import { FILLS } from './fills.js'
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -27,14 +28,6 @@ onMounted(() => {
   boxes[props.id] = { x: props.x, y: props.y, w: props.w, h: props.h }
 })
 
-const FILLS = {
-  background: 'var(--tech-bg)',
-  zoneOuter: 'var(--diag-zone-outer)',
-  zoneInner: 'var(--diag-zone-inner)',
-  nodeExternal: 'var(--diag-node-external)',
-  emphasis: 'var(--diag-emphasis)',
-  transparent: 'transparent',
-}
 const bg = computed(() => FILLS[props.fill] ?? FILLS.background)
 
 const iconSrc = computed(() => resolveIconSrc(props.icon))
