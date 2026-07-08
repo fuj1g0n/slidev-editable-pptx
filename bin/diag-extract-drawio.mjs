@@ -169,22 +169,25 @@ function buildDrawio(elements, dg, imageData, background) {
       vertex(r, st, text)
     } else if (el.kind === 'image') {
       let r = norm(el.rect)
+      let plateInfo = null
       if (el.plate) {
         // plate（下敷き）はテーマ依存（--diag-icon-plate 未定義のテーマでは
-        // 存在しない）。id を記録し、描画側でテーマに合わせて着色/除去する
-        plates.push(
-          vertex(
-            fit(r),
-            `rounded=1;absoluteArcSize=1;arcSize=${N(el.plate.radiusPx * 2)};fillColor=${color(el.plate.color)};strokeColor=none;html=0;`,
-          ),
+        // 存在しない）。id を記録し、描画側でテーマに合わせて着色/除去する。
+        // ロゴは padding 分内側に縮んでいる（dark-icons.css）ため、除去時に
+        // 元の外形へ戻せるよう pad も記録する
+        const plateId = vertex(
+          fit(r),
+          `rounded=1;absoluteArcSize=1;arcSize=${N(el.plate.radiusPx * 2)};fillColor=${color(el.plate.color)};strokeColor=none;html=0;`,
         )
         const p = N(el.plate.padPx)
         r = { x: N(r.x + p), y: N(r.y + p), w: N(r.w - 2 * p), h: N(r.h - 2 * p) }
+        plateInfo = { id: plateId, pad: p }
       }
       // drawio 単体でも表示できるよう data URI（drawio 慣行の base64）で埋め込む
       const src = el.src?.startsWith('http') ? new URL(el.src).pathname : el.src
       const uri = imageData.get(src) ?? src
       const cid = vertex(r, `shape=image;imageAspect=0;image=${uri};`)
+      if (plateInfo) plates.push({ ...plateInfo, img: cid })
       // テーマ切替で差し替わる単色 octicon は正準パス（light 版）を記録する
       if (src?.includes('/icons/'))
         icons[cid] = src.replace('/icons/octicons-dark/', '/icons/octicons/')

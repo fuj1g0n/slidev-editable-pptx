@@ -87,21 +87,30 @@ onMounted(async () => {
       }
     }
     // plate（ロゴの下敷き）はテーマ依存: --diag-icon-plate 未定義のテーマでは
-    // 除去、定義されていればその実値で着色する
+    // 除去し、ロゴ矩形を padding 分外側（原本の外形寸法）へ戻す。
+    // 定義されていればその実値で着色する
     if (theme?.plates?.length) {
       const plateColor = rootCs.getPropertyValue('--diag-icon-plate').trim()
       const resolved = plateColor.startsWith('var(')
         ? rootCs.getPropertyValue(plateColor.slice(4, -1).trim()).trim()
         : plateColor
-      for (const id of theme.plates) {
+      for (const pl of theme.plates) {
+        const { id, img, pad } = typeof pl === 'string' ? { id: pl } : pl
         const cell = cellOf(id)
         if (!cell) continue
-        if (/^#[0-9a-fA-F]{6}$/.test(resolved))
+        if (/^#[0-9a-fA-F]{6}$/.test(resolved)) {
           cell.setAttribute(
             'style',
             cell.getAttribute('style').replace(/fillColor=[^;]*;/, `fillColor=${resolved};`),
           )
-        else cell.remove()
+        } else {
+          cell.remove()
+          const geo = img != null && pad > 0 && cellOf(img)?.querySelector('mxGeometry')
+          if (geo) {
+            for (const [k, d] of [['x', -pad], ['y', -pad], ['width', 2 * pad], ['height', 2 * pad]])
+              geo.setAttribute(k, String(Number(geo.getAttribute(k) || 0) + d))
+          }
+        }
       }
     }
 
