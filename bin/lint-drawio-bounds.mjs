@@ -61,65 +61,81 @@ for (const file of files) {
   const xml = readFileSync(file, 'utf8')
   const result = await page.evaluate((xmlText) => {
     const doc = window.mxUtils.parseXml(xmlText)
-    const model = doc.documentElement.querySelector('mxGraphModel')
-    const pageW = model ? parseFloat(model.getAttribute('pageWidth')) : NaN
-    const pageH = model ? parseFloat(model.getAttribute('pageHeight')) : NaN
-    if (!(pageW > 0 && pageH > 0))
-      return { error: 'mxGraphModel の pageWidth/pageHeight が無い（ページ矩形が契約の基準）' }
-    const el = document.createElement('div')
-    el.style.width = `${pageW}px`
-    el.style.height = `${pageH}px`
-    document.body.appendChild(el)
-    try {
-      const viewer = new window.GraphViewer(el, doc.documentElement, {
-        nav: false,
-        highlight: 'none',
-        lightbox: false,
-        resize: false,
-        border: 0,
-        'auto-fit': false,
-        'auto-crop': false,
-        zoom: '1',
-      })
-      const g = viewer.graph
-      g.view.scaleAndTranslate(1, 0, 0)
-      const bad = []
-      const N = (v) => Math.round(v * 100) / 100
-      const check = (cell, kind, bb, o) => {
-        const over = {
-          left: N(-(bb.x + o)),
-          top: N(-(bb.y + o)),
-          right: N(bb.x + o + bb.width - pageW),
-          bottom: N(bb.y + o + bb.height - pageH),
-        }
-        const sides = Object.entries(over).filter(([, v]) => v > 0.01)
-        if (sides.length === 0) return
-        bad.push(
-          `${cell.id}${cell.value ? ` "${String(cell.value).slice(0, 20)}"` : ''} (${kind}): ` +
-            sides.map(([s, v]) => `${s} +${v}px`).join(', '),
-        )
+    const models = [...doc.documentElement.querySelectorAll('mxGraphModel')]
+    if (models.length === 0) return { error: 'mxGraphModel が無い' }
+    const pages = []
+    for (let i = 0; i < models.length; i++) {
+      const model = models[i]
+      const name = model.closest('diagram')?.getAttribute('name') ?? `#${i}`
+      const pageW = parseFloat(model.getAttribute('pageWidth'))
+      const pageH = parseFloat(model.getAttribute('pageHeight'))
+      if (!(pageW > 0 && pageH > 0)) {
+        pages.push({ name, error: 'mxGraphModel の pageWidth/pageHeight が無い（ページ矩形が契約の基準）' })
+        continue
       }
-      const walk = (cell) => {
-        const s = g.view.getState(cell)
-        if (s?.shape) {
-          const o = s.shape.getSvgScreenOffset?.() ?? 0
-          check(cell, cell.edge ? 'edge' : 'shape', s.shape.boundingBox ?? s, o)
-          if (s.text?.boundingBox) check(cell, 'label', s.text.boundingBox, 0)
+      const el = document.createElement('div')
+      el.style.width = `${pageW}px`
+      el.style.height = `${pageH}px`
+      document.body.appendChild(el)
+      try {
+        const viewer = new window.GraphViewer(el, doc.documentElement, {
+          nav: false,
+          highlight: 'none',
+          lightbox: false,
+          resize: false,
+          border: 0,
+          'auto-fit': false,
+          'auto-crop': false,
+          zoom: '1',
+          page: i,
+        })
+        const g = viewer.graph
+        g.view.scaleAndTranslate(1, 0, 0)
+        const bad = []
+        const N = (v) => Math.round(v * 100) / 100
+        const check = (cell, kind, bb, o) => {
+          const over = {
+            left: N(-(bb.x + o)),
+            top: N(-(bb.y + o)),
+            right: N(bb.x + o + bb.width - pageW),
+            bottom: N(bb.y + o + bb.height - pageH),
+          }
+          const sides = Object.entries(over).filter(([, v]) => v > 0.01)
+          if (sides.length === 0) return
+          bad.push(
+            `${cell.id}${cell.value ? ` "${String(cell.value).slice(0, 20)}"` : ''} (${kind}): ` +
+              sides.map(([s, v]) => `${s} +${v}px`).join(', '),
+          )
         }
-        for (const c of cell.children ?? []) walk(c)
+        const walk = (cell) => {
+          const s = g.view.getState(cell)
+          if (s?.shape) {
+            const o = s.shape.getSvgScreenOffset?.() ?? 0
+            check(cell, cell.edge ? 'edge' : 'shape', s.shape.boundingBox ?? s, o)
+            if (s.text?.boundingBox) check(cell, 'label', s.text.boundingBox, 0)
+          }
+          for (const c of cell.children ?? []) walk(c)
+        }
+        walk(g.model.root)
+        pages.push({ name, pageW, pageH, bad })
+      } catch (e) {
+        pages.push({ name, error: String(e) })
+      } finally {
+        el.remove()
       }
-      walk(g.model.root)
-      return { pageW, pageH, bad }
-    } catch (e) {
-      return { error: String(e) }
-    } finally {
-      el.remove()
     }
+    return { pages }
   }, xml)
   if (result.error) errors.push(`${rel}: ${result.error}`)
   else
-    for (const b of result.bad)
-      errors.push(`${rel}: ページ (${result.pageW}x${result.pageH}) から塗りがはみ出す: ${b}`)
+    for (const pg of result.pages) {
+      if (pg.error) errors.push(`${rel} [${pg.name}]: ${pg.error}`)
+      else
+        for (const b of pg.bad)
+          errors.push(
+            `${rel} [${pg.name}]: ページ (${pg.pageW}x${pg.pageH}) から塗りがはみ出す: ${b}`,
+          )
+    }
 }
 await browser.close()
 

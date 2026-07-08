@@ -18,6 +18,11 @@ const SLIDE_NO = Number(process.env.SLIDE_NO ?? 1)
 const OUT = process.env.OUT ?? 'out/figure.drawio'
 const PORT = Number(process.env.SLIDEV_PORT ?? 18731)
 const BASE = `http://localhost:${PORT}`
+// 変種ページ（単体閲覧用）: 別テーマのデッキを開いてテーマ値だけを読み、
+// 同一幾何の diagram ページを追加で焼き込む
+const VARIANT_ENTRY = process.env.VARIANT_ENTRY
+const VARIANT_SLIDE = Number(process.env.VARIANT_SLIDE ?? 1)
+const VARIANT_NAME = process.env.VARIANT_NAME ?? 'light'
 
 const browserPath = process.env.CHROME_PATH ?? process.env.PUPPETEER_EXECUTABLE_PATH
 if (!browserPath) {
@@ -43,38 +48,52 @@ const THEME_VARS = [
 ]
 
 // ---- Slidev dev server ----
-let serverLog = ''
-let serverExited = false
-const server = spawn('npx', ['slidev', ENTRY, '--port', String(PORT), '--force'], {
-  stdio: ['ignore', 'pipe', 'pipe'],
-  detached: true,
-})
-server.stdout.on('data', (d) => (serverLog += d))
-server.stderr.on('data', (d) => (serverLog += d))
-server.on('exit', () => (serverExited = true))
-const stopServer = () => {
-  try {
-    process.kill(-server.pid, 'SIGTERM')
-  } catch {
-    /* 既に終了 */
-  }
-}
-process.on('exit', stopServer)
-
-async function waitForServer(url, timeoutMs = 180000) {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    if (serverExited) break
+const servers = []
+process.on('exit', () => {
+  for (const s of servers) {
     try {
-      const res = await fetch(url)
-      if (res.ok) return
+      process.kill(-s.pid, 'SIGTERM')
     } catch {
-      /* まだ起動していない */
+      /* 既に終了 */
     }
-    await new Promise((r) => setTimeout(r, 500))
   }
-  console.error(serverLog || '(出力なし)')
-  throw new Error(`Slidev dev server が ${url} で起動しない`)
+})
+
+function startServer(entry, port) {
+  let log = ''
+  let exited = false
+  const proc = spawn('npx', ['slidev', entry, '--port', String(port), '--force'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
+  })
+  proc.stdout.on('data', (d) => (log += d))
+  proc.stderr.on('data', (d) => (log += d))
+  proc.on('exit', () => (exited = true))
+  servers.push(proc)
+  return {
+    stop() {
+      try {
+        process.kill(-proc.pid, 'SIGTERM')
+      } catch {
+        /* 既に終了 */
+      }
+    },
+    async wait(url, timeoutMs = 180000) {
+      const start = Date.now()
+      while (Date.now() - start < timeoutMs) {
+        if (exited) break
+        try {
+          const res = await fetch(url)
+          if (res.ok) return
+        } catch {
+          /* まだ起動していない */
+        }
+        await new Promise((r) => setTimeout(r, 500))
+      }
+      console.error(log || '(出力なし)')
+      throw new Error(`Slidev dev server が ${url} で起動しない`)
+    },
+  }
 }
 
 // ---- XML 生成 ----
@@ -96,7 +115,7 @@ const N = (v) => Math.round(v * 100) / 100
 // CSS 実測と一致し、塗り境界がページ矩形に収まる
 const crispOffset = (sw) => (Math.max(1, Math.round(sw || 1)) % 2 === 1 ? 0.5 : 0)
 
-function buildDrawio(elements, dg, imageData, background) {
+function buildDrawio(elements, dg, imageData, background, opts = {}) {
   let id = 1
   const cells = []
   const usedColors = new Set()
@@ -104,7 +123,11 @@ function buildDrawio(elements, dg, imageData, background) {
   const icons = {}
   const plates = []
   const color = (c) => {
-    if (c) usedColors.add(`#${c.toLowerCase()}`)
+    if (!c) return 'none'
+    // 変種ページ: 抽出テーマの色を変種テーマの色へ写像（palette 経由）
+    const mapped = opts.colorMap?.[`#${c.toLowerCase()}`]
+    if (mapped) c = mapped.slice(1)
+    usedColors.add(`#${c.toLowerCase()}`)
     return hex(c)
   }
   const norm = (r) => ({ x: N(r.x - dg.x), y: N(r.y - dg.y), w: N(r.w), h: N(r.h) })
@@ -170,7 +193,7 @@ function buildDrawio(elements, dg, imageData, background) {
     } else if (el.kind === 'image') {
       let r = norm(el.rect)
       let plateInfo = null
-      if (el.plate) {
+      if (el.plate && !opts.dropPlates) {
         // plate（下敷き）はテーマ依存（--diag-icon-plate 未定義のテーマでは
         // 存在しない）。id を記録し、描画側でテーマに合わせて着色/除去する。
         // ロゴは padding 分内側に縮んでいる（dark-icons.css）ため、除去時に
@@ -184,7 +207,9 @@ function buildDrawio(elements, dg, imageData, background) {
         plateInfo = { id: plateId, pad: p }
       }
       // drawio 単体でも表示できるよう data URI（drawio 慣行の base64）で埋め込む
-      const src = el.src?.startsWith('http') ? new URL(el.src).pathname : el.src
+      let src = el.src?.startsWith('http') ? new URL(el.src).pathname : el.src
+      // 変種ページ: octicon をそのテーマのアイコンセットへ差し替える
+      if (opts.iconResolve && src) src = opts.iconResolve(src)
       const uri = imageData.get(src) ?? src
       const cid = vertex(r, `shape=image;imageAspect=0;image=${uri};`)
       if (plateInfo) plates.push({ ...plateInfo, img: cid })
@@ -241,17 +266,67 @@ function buildDrawio(elements, dg, imageData, background) {
     }
   }
 
-  const xml =
-    `<mxfile host="diag-extract-drawio"><diagram id="poc" name="Page-1">` +
-    `<mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="0" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="${N(dg.w)}" pageHeight="${N(dg.h)}"${background ? ` background="${color(background)}"` : ''} math="0" shadow="0">` +
+  // 背景: 変種ページでは実測値そのもの（colorMap を通すと、抽出テーマの
+  // 前景色と偶然同値の場合に誤写像される）
+  const bgColor = background ? (opts.colorMap ? hex(background) : color(background)) : null
+  const pageXml =
+    `<diagram id="${opts.pageId ?? 'poc'}" name="${opts.pageName ?? 'dark'}">` +
+    `<mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="0" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="${N(dg.w)}" pageHeight="${N(dg.h)}"${bgColor ? ` background="${bgColor}"` : ''} math="0" shadow="0">` +
     `<root><mxCell id="0"/><mxCell id="1" parent="0"/>` +
     cells.join('') +
-    `</root></mxGraphModel></diagram></mxfile>`
-  return { xml, usedColors, icons, plates }
+    `</root></mxGraphModel></diagram>`
+  return { pageXml, usedColors, icons, plates }
 }
 
+const wrapMxfile = (pages) => `<mxfile host="diag-extract-drawio">${pages.join('')}</mxfile>`
+
+// スライドからテーマ関連の実測値を読む（メイン抽出と変種で共用）
+const measure = (sel, vars) => {
+  const root = document.querySelector(sel)
+  const rootRect = root.getBoundingClientRect()
+  const scale = 1280 / rootRect.width
+  const dg = root.querySelector('[data-diag="root"]')
+  const r = dg.getBoundingClientRect()
+  const cs = getComputedStyle(dg)
+  // 図の実効背景色: 祖先を遡って最初の不透明 background-color。
+  // Slidev では背景はスライド側が持つため、drawio 単体表示用に
+  // page background として埋める
+  let bg = null
+  for (let e = dg; e; e = e.parentElement) {
+    const c = getComputedStyle(e).backgroundColor
+    const m = c.match(/^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/)
+    if (m && (m[4] === undefined || parseFloat(m[4]) > 0)) {
+      bg = [m[1], m[2], m[3]]
+        .map((v) => Number(v).toString(16).padStart(2, '0'))
+        .join('')
+      break
+    }
+  }
+  const theme = {}
+  for (const v of vars) {
+    const val = cs.getPropertyValue(v).trim()
+    if (/^#[0-9a-fA-F]{6}$/.test(val)) theme[v] = val.toLowerCase()
+  }
+  const rootCs = getComputedStyle(document.documentElement)
+  const iconSet = rootCs.getPropertyValue('--diag-icon-set').trim() || 'light'
+  const plate = rootCs.getPropertyValue('--diag-icon-plate').trim()
+  return {
+    dg: {
+      x: (r.left - rootRect.left) * scale,
+      y: (r.top - rootRect.top) * scale,
+      w: r.width * scale,
+      h: r.height * scale,
+    },
+    theme,
+    bg,
+    iconSet,
+    plate,
+  }
+}
+
+const server = startServer(ENTRY, PORT)
 try {
-  await waitForServer(BASE)
+  await server.wait(BASE)
   const browser = await puppeteer.launch({ executablePath: browserPath, headless: true })
   const page = await browser.newPage()
   await page.setViewport({ width: 1280, height: 720 })
@@ -261,51 +336,7 @@ try {
 
   const sel = `[data-slidev-no="${SLIDE_NO}"]`
   const data = await page.evaluate(walker, sel)
-  const info = await page.evaluate(
-    (sel, vars) => {
-      const root = document.querySelector(sel)
-      const rootRect = root.getBoundingClientRect()
-      const scale = 1280 / rootRect.width
-      const dg = root.querySelector('[data-diag="root"]')
-      const r = dg.getBoundingClientRect()
-      const cs = getComputedStyle(dg)
-      // 図の実効背景色: 祖先を遡って最初の不透明 background-color。
-      // Slidev では背景はスライド側が持つため、drawio 単体表示用に
-      // page background として埋める
-      let bg = null
-      for (let e = dg; e; e = e.parentElement) {
-        const c = getComputedStyle(e).backgroundColor
-        const m = c.match(/^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/)
-        if (m && (m[4] === undefined || parseFloat(m[4]) > 0)) {
-          bg = [m[1], m[2], m[3]]
-            .map((v) => Number(v).toString(16).padStart(2, '0'))
-            .join('')
-          break
-        }
-      }
-      const theme = {}
-      for (const v of vars) {
-        const val = cs.getPropertyValue(v).trim()
-        if (/^#[0-9a-fA-F]{6}$/.test(val)) theme[v] = val.toLowerCase()
-      }
-      const iconSet =
-        getComputedStyle(document.documentElement).getPropertyValue('--diag-icon-set').trim() ||
-        'light'
-      return {
-        dg: {
-          x: (r.left - rootRect.left) * scale,
-          y: (r.top - rootRect.top) * scale,
-          w: r.width * scale,
-          h: r.height * scale,
-        },
-        theme,
-        bg,
-        iconSet,
-      }
-    },
-    sel,
-    THEME_VARS,
-  )
+  const info = await page.evaluate(measure, sel, THEME_VARS)
   await browser.close()
 
   // Diag 内の要素だけを対象にする（見出し等は図の外）
@@ -316,24 +347,58 @@ try {
   )
   console.log(`抽出: ${els.length} 要素（全 ${data.elements.length} 中） 図領域 ${N(info.dg.w)}x${N(info.dg.h)}`)
 
+  // 変種テーマの実測（VARIANT_ENTRY 指定時）: 幾何は再抽出せず、
+  // テーマ値（CSS 変数・背景・アイコンセット・plate）だけを読む
+  let variant = null
+  if (VARIANT_ENTRY) {
+    const vBase = `http://localhost:${PORT + 1}`
+    const vServer = startServer(VARIANT_ENTRY, PORT + 1)
+    await vServer.wait(vBase)
+    const b = await puppeteer.launch({ executablePath: browserPath, headless: true })
+    const p = await b.newPage()
+    await p.setViewport({ width: 1280, height: 720 })
+    await p.goto(`${vBase}/${VARIANT_SLIDE}?print=true`, { waitUntil: 'networkidle0' })
+    await p.evaluate(() => document.fonts.ready)
+    await new Promise((r) => setTimeout(r, 800))
+    variant = await p.evaluate(measure, `[data-slidev-no="${VARIANT_SLIDE}"]`, THEME_VARS)
+    await b.close()
+    vServer.stop()
+    console.log(`変種 "${VARIANT_NAME}": iconSet=${variant.iconSet} plate=${variant.plate || '(なし)'} bg=#${variant.bg}`)
+  }
+
+  // 変種ページ用の octicon 差し替え規則（ADR-0004 resolveIconSrc と同じ）
+  const iconResolve =
+    variant &&
+    ((src) =>
+      variant.iconSet === 'dark'
+        ? src.replace('/icons/octicons/', '/icons/octicons-dark/')
+        : src.replace('/icons/octicons-dark/', '/icons/octicons/'))
+
   // 画像を dev server から取得して data URI 化（drawio 慣行: base64 をカンマ直後に置く）
   const imageData = new Map()
-  for (const el of els) {
-    if (el.kind !== 'image' || !el.src) continue
-    const path = el.src.startsWith('http') ? new URL(el.src).pathname : el.src
-    if (imageData.has(path)) continue
+  const embed = async (path) => {
+    if (imageData.has(path)) return
     const res = await fetch(`${BASE}${path}`)
     if (!res.ok) {
       console.warn(`画像取得失敗: ${path}`)
-      continue
+      return
     }
     const mime = path.endsWith('.svg') ? 'image/svg+xml' : (res.headers.get('content-type') ?? 'image/png').split(';')[0]
     const b64 = Buffer.from(await res.arrayBuffer()).toString('base64')
     imageData.set(path, `data:${mime},${b64}`)
   }
+  for (const el of els) {
+    if (el.kind !== 'image' || !el.src) continue
+    const path = el.src.startsWith('http') ? new URL(el.src).pathname : el.src
+    await embed(path)
+    if (iconResolve) await embed(iconResolve(path))
+  }
   console.log(`画像埋め込み: ${imageData.size} 種`)
 
-  const { xml, usedColors, icons, plates } = buildDrawio(els, info.dg, imageData, info.bg)
+  const { pageXml, usedColors, icons, plates } = buildDrawio(els, info.dg, imageData, info.bg, {
+    pageId: 'poc',
+    pageName: info.iconSet,
+  })
 
   // テーマ写像: 使用色のうち CSS 変数値と一致するものを対応表にする
   const byValue = {}
@@ -345,17 +410,34 @@ try {
     else unmapped.push(c)
   }
 
+  // 変種ページ: palette を介して抽出テーマ色 → 変種テーマ色へ写像し、
+  // アイコン・plate も変種テーマの姿で焼き込む（単体閲覧でのページ切替用）
+  const pages = [pageXml]
+  if (variant) {
+    const colorMap = {}
+    for (const [hexVal, varName] of Object.entries(palette))
+      if (variant.theme[varName]) colorMap[hexVal] = variant.theme[varName]
+    const v = buildDrawio(els, info.dg, imageData, variant.bg, {
+      pageId: `poc-${VARIANT_NAME}`,
+      pageName: VARIANT_NAME,
+      colorMap,
+      iconResolve,
+      dropPlates: !/^#[0-9a-fA-F]{6}$/.test(variant.plate ?? ''),
+    })
+    pages.push(v.pageXml)
+  }
+
   await mkdir(dirname(OUT), { recursive: true })
-  await writeFile(OUT, xml)
+  await writeFile(OUT, wrapMxfile(pages))
   await writeFile(
     `${OUT}.theme.json`,
     JSON.stringify({ palette, unmapped, iconSet: info.iconSet, icons, plates }, null, 2) + '\n',
   )
-  console.log(`書き出し: ${OUT} / ${OUT}.theme.json`)
+  console.log(`書き出し: ${OUT} / ${OUT}.theme.json（${pages.length} ページ）`)
   console.log(
     `テーマ写像: ${Object.keys(palette).length} 色, 未対応 ${unmapped.length} 色 ${unmapped.join(' ')}, ` +
       `アイコン ${Object.keys(icons).length}, plate ${plates.length}`,
   )
 } finally {
-  stopServer()
+  server.stop()
 }

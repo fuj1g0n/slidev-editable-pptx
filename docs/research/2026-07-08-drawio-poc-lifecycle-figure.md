@@ -131,12 +131,34 @@ ECMA-376 Part 1 の `<a:ln>`（shape outline）は `algn` 属性
   `image=` を差し替える。**mxGraph は相対パスを imageBasePath
   (app.diagrams.net) 基準で解決するため、現オリジンの絶対 URL に
   すること**（相対のままだと全アイコンが消える）。
-- **plates**: ブランドロゴ下敷きのセル id 一覧。現テーマの
+- **plates**: ブランドロゴ下敷きの `{id, img, pad}` 一覧。現テーマの
   `--diag-icon-plate`（`var()` 間接参照も解決）が hex なら fillColor を
-  差し替え、未定義（ライトテーマ）なら XML DOM からセルごと除去する。
+  差し替え、未定義（ライトテーマ）なら XML DOM からセルごと除去し、
+  ロゴセル（img）の geometry を pad 分外側へ戻す（dark-icons.css の
+  `padding: 3px` はダークテーマ専用のため、除去だけではロゴが縮んで
+  見える）。
 
 検証: github-default-light の別デッキで原本と比較し pixelmatch 3.39%
 （ダークと同値）。ダーク側も 3.39% を維持（非回帰）。
+
+### 変種ページの焼き込み（drawio 単体での light/dark 閲覧）
+
+Slidev 埋め込みは実行時適応で任意テーマに追従するが、.drawio 単体
+（VS Code 拡張・diagrams.net）でも light/dark を見られるよう、
+`VARIANT_ENTRY`（+ `VARIANT_SLIDE` / `VARIANT_NAME`）指定でマルチページ
+mxfile を生成する:
+
+- ページ 1 = 正準（抽出テーマ、名前は抽出時 iconSet）。theme.json の
+  palette / icons / plates の id はこのページを指す。
+- ページ 2 = 変種。幾何は再抽出せず、変種デッキをヘッドレスで開いて
+  テーマ値（CSS 変数・背景・iconSet・plate）だけを読み、palette 経由の
+  colorMap・octicon 差し替え（変種セットの data URI 焼き込み）・plate
+  除去（pad 分の外形復元込み）を build 時に適用する。
+- 埋め込み側 (DrawioDiag) は `page: 0` 固定で常に正準ページを実行時
+  適応する。lint-drawio-bounds は全ページを検査する。
+- 注意: 変種の background は colorMap を通さない。抽出テーマの前景
+  #ffffff と変種背景 #ffffff のように偶然同値だと誤写像されるため
+  （実測値をそのまま使う）。
 
 ### viewer-static.min.js の性質
 

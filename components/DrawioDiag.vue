@@ -122,6 +122,9 @@ onMounted(async () => {
       border: 0,
       'auto-fit': false,
       'auto-crop': false,
+      // 変種ページ（単体閲覧用）を含むマルチページでも、埋め込みは常に
+      // 正準ページ（先頭）を実行時テーマ適応して使う
+      page: 0,
       zoom: '1',
     })
     const g = viewer.graph
