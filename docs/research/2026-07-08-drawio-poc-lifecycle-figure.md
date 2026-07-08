@@ -113,52 +113,55 @@ ECMA-376 Part 1 の `<a:ln>`（shape outline）は `algn` 属性
 - 複合線（`cmpd`: 二重線等）や線端処理は別途対応が要るが、
   座標規約そのものは上記で閉じる。
 
-### テーマ適応（palette / iconSet / icons / plates）
+### テーマ適応（ページ選択 + palette）
 
 図はダークテーマで抽出されるが、Slidev 埋め込みはテーマ切替
 （背景・テーマ色・白黒アイコン・plate 下敷き）へ追従する必要がある。
-`<OUT>.theme.json` に抽出時の情報を記録し、DrawioDiag が mount 時に
-現テーマへ再解決する:
+アイコンは light/dark の 2 系統しかないため、**両系統をページとして
+build 時に焼き込み**、実行時は「ページ選択 + 色の palette 置換」だけで
+適応する（実行時のアイコン差し替え・plate 除去は廃止）:
 
-- **palette**: XML 中の正準 hex → CSS 変数名。mount 時に現テーマの
-  実値へ文字列置換（`background` 属性も対象）。base64 data URI に
-  `#` 付き hex は現れないため誤置換の危険はない。
-- **iconSet**: 抽出時の `--diag-icon-set`。現テーマと一致すれば
-  焼き込み data URI をそのまま使う（オフライン正準表示）。
-- **icons**: セル id → 正準アイコンパス（`/icons/octicons-dark/` →
-  `/icons/octicons/` に正規化）。テーマが異なる場合のみ、ADR-0004 の
-  `resolveIconSrc` と同じ規則でテーマ側パスへ再解決し、セル style の
-  `image=` を差し替える。**mxGraph は相対パスを imageBasePath
-  (app.diagrams.net) 基準で解決するため、現オリジンの絶対 URL に
-  すること**（相対のままだと全アイコンが消える）。
-- **plates**: ブランドロゴ下敷きの `{id, img, pad}` 一覧。現テーマの
-  `--diag-icon-plate`（`var()` 間接参照も解決）が hex なら fillColor を
-  差し替え、未定義（ライトテーマ）なら XML DOM からセルごと除去し、
-  ロゴセル（img）の geometry を pad 分外側へ戻す（dark-icons.css の
-  `padding: 3px` はダークテーマ専用のため、除去だけではロゴが縮んで
-  見える）。
+- .drawio はマルチページ mxfile: ページ「dark」（抽出テーマ、dark
+  octicons + plate あり）とページ「light」（light octicons、plate なし
+  + ロゴ外形復元）。data URI 焼き込みなのでオフライン・単体閲覧でも
+  両系統が完全表示できる（VS Code 拡張のページタブで切替）。
+- `<OUT>.theme.json` は `pages: [{name, iconSet, palette, unmapped}]`。
+  DrawioDiag は mount 時に現テーマの `--diag-icon-set` に一致する
+  iconSet のページを選び（無ければページ 0 + console.warn）、その
+  ページの palette（正準 hex → CSS 変数名）を現テーマの実値へ文字列
+  置換して `GraphViewer` に `page: idx` で渡す。
+- palette 置換は XML 全文への文字列置換だが、非選択ページに同じ hex が
+  あっても描画されないため無害。base64 data URI に `#` 付き hex は
+  現れないため誤置換の危険もない。
+- 同系統でテーマ色だけ異なるテーマ（security/copilot 等）は palette
+  置換が吸収する。plate の色も palette（--tech-fg）経由で追従する。
+
+歴史的経緯: 当初は theme.json に icons/plates のセル id を記録し
+DrawioDiag が実行時に style の `image=`/fillColor を書き換えていたが、
+**mxGraph は相対画像パスを imageBasePath (app.diagrams.net) 基準で
+解決する**ため絶対 URL 化が必要になるなど複雑だった。アイコンが
+2 系統しかない事実を使い、build 時焼き込み + ページ選択に単純化した。
 
 検証: github-default-light の別デッキで原本と比較し pixelmatch 3.39%
 （ダークと同値）。ダーク側も 3.39% を維持（非回帰）。
 
-### 変種ページの焼き込み（drawio 単体での light/dark 閲覧）
+### 変種ページの焼き込み（生成方法）
 
-Slidev 埋め込みは実行時適応で任意テーマに追従するが、.drawio 単体
-（VS Code 拡張・diagrams.net）でも light/dark を見られるよう、
 `VARIANT_ENTRY`（+ `VARIANT_SLIDE` / `VARIANT_NAME`）指定でマルチページ
 mxfile を生成する:
 
-- ページ 1 = 正準（抽出テーマ、名前は抽出時 iconSet）。theme.json の
-  palette / icons / plates の id はこのページを指す。
+- ページ 1 = 正準（抽出テーマ、名前は抽出時 iconSet）。
 - ページ 2 = 変種。幾何は再抽出せず、変種デッキをヘッドレスで開いて
   テーマ値（CSS 変数・背景・iconSet・plate）だけを読み、palette 経由の
   colorMap・octicon 差し替え（変種セットの data URI 焼き込み）・plate
   除去（pad 分の外形復元込み）を build 時に適用する。
-- 埋め込み側 (DrawioDiag) は `page: 0` 固定で常に正準ページを実行時
-  適応する。lint-drawio-bounds は全ページを検査する。
+- lint-drawio-bounds は全ページを検査する。
 - 注意: 変種の background は colorMap を通さない。抽出テーマの前景
   #ffffff と変種背景 #ffffff のように偶然同値だと誤写像されるため
-  （実測値をそのまま使う）。
+  （実測値をそのまま使い、palette には記録する）。
+- 制約: 変種ページを省いた図をライトテーマで埋め込むと iconSet 不一致
+  でページ 0 に fallback する（アイコンが系統違いのまま）。図の生成は
+  常に VARIANT_ENTRY 付きで行うこと。
 
 ### viewer-static.min.js の性質
 

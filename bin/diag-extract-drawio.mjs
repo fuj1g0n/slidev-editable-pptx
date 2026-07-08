@@ -119,9 +119,6 @@ function buildDrawio(elements, dg, imageData, background, opts = {}) {
   let id = 1
   const cells = []
   const usedColors = new Set()
-  // テーマ切替情報（theme.json 用）: セル id → 正準アイコンパス、plate セル id
-  const icons = {}
-  const plates = []
   const color = (c) => {
     if (!c) return 'none'
     // 変種ページ: 抽出テーマの色を変種テーマの色へ写像（palette 経由）
@@ -192,30 +189,23 @@ function buildDrawio(elements, dg, imageData, background, opts = {}) {
       vertex(r, st, text)
     } else if (el.kind === 'image') {
       let r = norm(el.rect)
-      let plateInfo = null
       if (el.plate && !opts.dropPlates) {
         // plate（下敷き）はテーマ依存（--diag-icon-plate 未定義のテーマでは
-        // 存在しない）。id を記録し、描画側でテーマに合わせて着色/除去する。
-        // ロゴは padding 分内側に縮んでいる（dark-icons.css）ため、除去時に
-        // 元の外形へ戻せるよう pad も記録する
-        const plateId = vertex(
+        // 存在しない）。variant 側は dropPlates で除去し、ロゴを CSS の
+        // padding 前の外形寸法のまま置く
+        vertex(
           fit(r),
           `rounded=1;absoluteArcSize=1;arcSize=${N(el.plate.radiusPx * 2)};fillColor=${color(el.plate.color)};strokeColor=none;html=0;`,
         )
         const p = N(el.plate.padPx)
         r = { x: N(r.x + p), y: N(r.y + p), w: N(r.w - 2 * p), h: N(r.h - 2 * p) }
-        plateInfo = { id: plateId, pad: p }
       }
       // drawio 単体でも表示できるよう data URI（drawio 慣行の base64）で埋め込む
       let src = el.src?.startsWith('http') ? new URL(el.src).pathname : el.src
       // 変種ページ: octicon をそのテーマのアイコンセットへ差し替える
       if (opts.iconResolve && src) src = opts.iconResolve(src)
       const uri = imageData.get(src) ?? src
-      const cid = vertex(r, `shape=image;imageAspect=0;image=${uri};`)
-      if (plateInfo) plates.push({ ...plateInfo, img: cid })
-      // テーマ切替で差し替わる単色 octicon は正準パス（light 版）を記録する
-      if (src?.includes('/icons/'))
-        icons[cid] = src.replace('/icons/octicons-dark/', '/icons/octicons/')
+      vertex(r, `shape=image;imageAspect=0;image=${uri};`)
     } else if (el.kind === 'diag-chevron') {
       const r = fit(norm(el.rect))
       const n = N(el.notchPx / r.w)
@@ -267,7 +257,8 @@ function buildDrawio(elements, dg, imageData, background, opts = {}) {
   }
 
   // 背景: 変種ページでは実測値そのもの（colorMap を通すと、抽出テーマの
-  // 前景色と偶然同値の場合に誤写像される）
+  // 前景色と偶然同値の場合に誤写像される）。palette には記録する
+  if (background && opts.colorMap) usedColors.add(`#${background.toLowerCase()}`)
   const bgColor = background ? (opts.colorMap ? hex(background) : color(background)) : null
   const pageXml =
     `<diagram id="${opts.pageId ?? 'poc'}" name="${opts.pageName ?? 'dark'}">` +
@@ -275,7 +266,7 @@ function buildDrawio(elements, dg, imageData, background, opts = {}) {
     `<root><mxCell id="0"/><mxCell id="1" parent="0"/>` +
     cells.join('') +
     `</root></mxGraphModel></diagram>`
-  return { pageXml, usedColors, icons, plates }
+  return { pageXml, usedColors }
 }
 
 const wrapMxfile = (pages) => `<mxfile host="diag-extract-drawio">${pages.join('')}</mxfile>`
@@ -395,27 +386,33 @@ try {
   }
   console.log(`画像埋め込み: ${imageData.size} 種`)
 
-  const { pageXml, usedColors, icons, plates } = buildDrawio(els, info.dg, imageData, info.bg, {
+  const { pageXml, usedColors } = buildDrawio(els, info.dg, imageData, info.bg, {
     pageId: 'poc',
     pageName: info.iconSet,
   })
 
   // テーマ写像: 使用色のうち CSS 変数値と一致するものを対応表にする
-  const byValue = {}
-  for (const [name, val] of Object.entries(info.theme)) byValue[val] ??= name
-  const palette = {}
-  const unmapped = []
-  for (const c of usedColors) {
-    if (byValue[c]) palette[c] = byValue[c]
-    else unmapped.push(c)
+  const paletteFor = (colors, themeVars) => {
+    const byValue = {}
+    for (const [name, val] of Object.entries(themeVars)) byValue[val] ??= name
+    const palette = {}
+    const unmapped = []
+    for (const c of colors) {
+      if (byValue[c]) palette[c] = byValue[c]
+      else unmapped.push(c)
+    }
+    return { palette, unmapped }
   }
+  const main = paletteFor(usedColors, info.theme)
+  const pageMeta = [{ name: info.iconSet, iconSet: info.iconSet, ...main }]
 
   // 変種ページ: palette を介して抽出テーマ色 → 変種テーマ色へ写像し、
-  // アイコン・plate も変種テーマの姿で焼き込む（単体閲覧でのページ切替用）
+  // アイコン・plate も変種テーマの姿で焼き込む。埋め込み側は現テーマの
+  // iconSet に合うページを選び、そのページの palette で色だけ適応する
   const pages = [pageXml]
   if (variant) {
     const colorMap = {}
-    for (const [hexVal, varName] of Object.entries(palette))
+    for (const [hexVal, varName] of Object.entries(main.palette))
       if (variant.theme[varName]) colorMap[hexVal] = variant.theme[varName]
     const v = buildDrawio(els, info.dg, imageData, variant.bg, {
       pageId: `poc-${VARIANT_NAME}`,
@@ -425,19 +422,22 @@ try {
       dropPlates: !/^#[0-9a-fA-F]{6}$/.test(variant.plate ?? ''),
     })
     pages.push(v.pageXml)
+    pageMeta.push({
+      name: VARIANT_NAME,
+      iconSet: variant.iconSet,
+      ...paletteFor(v.usedColors, variant.theme),
+    })
   }
 
   await mkdir(dirname(OUT), { recursive: true })
   await writeFile(OUT, wrapMxfile(pages))
-  await writeFile(
-    `${OUT}.theme.json`,
-    JSON.stringify({ palette, unmapped, iconSet: info.iconSet, icons, plates }, null, 2) + '\n',
-  )
+  await writeFile(`${OUT}.theme.json`, JSON.stringify({ pages: pageMeta }, null, 2) + '\n')
   console.log(`書き出し: ${OUT} / ${OUT}.theme.json（${pages.length} ページ）`)
-  console.log(
-    `テーマ写像: ${Object.keys(palette).length} 色, 未対応 ${unmapped.length} 色 ${unmapped.join(' ')}, ` +
-      `アイコン ${Object.keys(icons).length}, plate ${plates.length}`,
-  )
+  for (const pm of pageMeta)
+    console.log(
+      `テーマ写像 [${pm.name}]: ${Object.keys(pm.palette).length} 色, ` +
+        `未対応 ${pm.unmapped.length} 色 ${pm.unmapped.join(' ')}`,
+    )
 } finally {
   server.stop()
 }

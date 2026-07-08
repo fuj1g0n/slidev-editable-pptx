@@ -43,12 +43,28 @@ onMounted(async () => {
       .catch(() => null),
   ])
 
-  // テーマ写像: 図の正準 hex → 現テーマの実値（同テーマなら恒等）
+  // テーマ写像: 現テーマの iconSet に合うページを選び（アイコンは build 時に
+  // 系統ごと焼き込み済み）、そのページの palette（正準 hex → CSS 変数名）を
+  // 現テーマの実値へ置換する。非選択ページに同じ hex があっても描画されない
+  const iconSet =
+    getComputedStyle(document.documentElement).getPropertyValue('--diag-icon-set').trim() ||
+    'light'
+  let pageIdx = 0
+  let palette = theme?.palette
+  if (Array.isArray(theme?.pages)) {
+    const i = theme.pages.findIndex((p) => p.iconSet === iconSet)
+    if (i >= 0) pageIdx = i
+    else
+      console.warn(
+        `DrawioDiag: iconSet "${iconSet}" のページが ${props.src} に無いためページ 0 を使う（図の再生成が必要）`,
+      )
+    palette = theme.pages[pageIdx]?.palette
+  }
   let xml = xmlRaw
   const applied = {}
-  if (theme?.palette) {
+  if (palette) {
     const cs = getComputedStyle(el.value)
-    for (const [hexColor, varName] of Object.entries(theme.palette)) {
+    for (const [hexColor, varName] of Object.entries(palette)) {
       const cur = cs.getPropertyValue(varName).trim()
       if (!/^#[0-9a-fA-F]{6}$/.test(cur)) continue
       applied[hexColor] = cur
@@ -62,58 +78,6 @@ onMounted(async () => {
   // 立てて（エラー印付き）walker を待たせない
   try {
     const doc = window.mxUtils.parseXml(xml)
-    const cellOf = (id) => doc.querySelector(`mxCell[id="${id}"]`)
-
-    // アイコンのテーマ適応（ADR-0004 の drawio 経路版）: 抽出時に焼き込まれた
-    // 単色 octicon を、現テーマの --diag-icon-set に従い正準（light）/dark 版へ
-    // 差し替える。パス参照にすることで dev server から現テーマの実体を取る
-    const rootCs = getComputedStyle(document.documentElement)
-    const iconSet = rootCs.getPropertyValue('--diag-icon-set').trim() || 'light'
-    if (theme?.icons && iconSet !== (theme.iconSet ?? 'dark')) {
-      for (const [id, canonical] of Object.entries(theme.icons)) {
-        const cell = cellOf(id)
-        if (!cell) continue
-        const src =
-          iconSet === 'dark'
-            ? canonical.replace('/icons/octicons/', '/icons/octicons-dark/')
-            : canonical
-        // mxGraph は相対パスを imageBasePath (diagrams.net) 基準で解決するため
-        // 現オリジンの絶対 URL にする
-        const abs = new URL(src, window.location.origin).href
-        cell.setAttribute(
-          'style',
-          cell.getAttribute('style').replace(/image=[^;]*;/, `image=${abs};`),
-        )
-      }
-    }
-    // plate（ロゴの下敷き）はテーマ依存: --diag-icon-plate 未定義のテーマでは
-    // 除去し、ロゴ矩形を padding 分外側（原本の外形寸法）へ戻す。
-    // 定義されていればその実値で着色する
-    if (theme?.plates?.length) {
-      const plateColor = rootCs.getPropertyValue('--diag-icon-plate').trim()
-      const resolved = plateColor.startsWith('var(')
-        ? rootCs.getPropertyValue(plateColor.slice(4, -1).trim()).trim()
-        : plateColor
-      for (const pl of theme.plates) {
-        const { id, img, pad } = typeof pl === 'string' ? { id: pl } : pl
-        const cell = cellOf(id)
-        if (!cell) continue
-        if (/^#[0-9a-fA-F]{6}$/.test(resolved)) {
-          cell.setAttribute(
-            'style',
-            cell.getAttribute('style').replace(/fillColor=[^;]*;/, `fillColor=${resolved};`),
-          )
-        } else {
-          cell.remove()
-          const geo = img != null && pad > 0 && cellOf(img)?.querySelector('mxGeometry')
-          if (geo) {
-            for (const [k, d] of [['x', -pad], ['y', -pad], ['width', 2 * pad], ['height', 2 * pad]])
-              geo.setAttribute(k, String(Number(geo.getAttribute(k) || 0) + d))
-          }
-        }
-      }
-    }
-
     const viewer = new window.GraphViewer(el.value, doc.documentElement, {
       nav: false,
       highlight: 'none',
@@ -122,9 +86,7 @@ onMounted(async () => {
       border: 0,
       'auto-fit': false,
       'auto-crop': false,
-      // 変種ページ（単体閲覧用）を含むマルチページでも、埋め込みは常に
-      // 正準ページ（先頭）を実行時テーマ適応して使う
-      page: 0,
+      page: pageIdx,
       zoom: '1',
     })
     const g = viewer.graph
