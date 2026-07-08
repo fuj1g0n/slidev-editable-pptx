@@ -121,10 +121,10 @@ ECMA-376 Part 1 の `<a:ln>`（shape outline）は `algn` 属性
 build 時に焼き込み**、実行時は「ページ選択 + 色の palette 置換」だけで
 適応する（実行時のアイコン差し替え・plate 除去は廃止）:
 
-- .drawio はマルチページ mxfile: ページ「dark」（抽出テーマ、dark
-  octicons + plate あり）とページ「light」（light octicons、plate なし
-  + ロゴ外形復元）。data URI 焼き込みなのでオフライン・単体閲覧でも
-  両系統が完全表示できる（VS Code 拡張のページタブで切替）。
+- .drawio はマルチページ mxfile: ページ「light」（light octicons、
+  plate なし + ロゴ外形復元）を先頭、ページ「dark」（抽出テーマ、dark
+  octicons + plate あり）を後ろに置く。data URI 焼き込みなのでオフライン・
+  単体閲覧でも両系統が完全表示できる（VS Code 拡張のページタブで切替）。
 - `<OUT>.theme.json` は `pages: [{name, iconSet, palette, unmapped}]`。
   DrawioDiag は mount 時に現テーマの `--diag-icon-set` に一致する
   iconSet のページを選び（無ければページ 0 + console.warn）、その
@@ -150,8 +150,11 @@ DrawioDiag が実行時に style の `image=`/fillColor を書き換えていた
 `VARIANT_ENTRY`（+ `VARIANT_SLIDE` / `VARIANT_NAME`）指定でマルチページ
 mxfile を生成する:
 
-- ページ 1 = 正準（抽出テーマ、名前は抽出時 iconSet）。
-- ページ 2 = 変種。幾何は再抽出せず、変種デッキをヘッドレスで開いて
+- 抽出テーマページ（名前は抽出時 iconSet）と変種ページを生成し、
+  **light 系を先頭に並べ替えて**書き出す。先頭ページが埋め込み側の
+  fallback になるため: 一般的なスライドでは、明るい背景に暗い図が
+  紛れる方が、暗い背景に明るい図が紛れるより違和感が大きい。
+- 変種は幾何を再抽出せず、変種デッキをヘッドレスで開いて
   テーマ値（CSS 変数・背景・iconSet・plate）だけを読み、palette 経由の
   colorMap・octicon 差し替え（変種セットの data URI 焼き込み）・plate
   除去（pad 分の外形復元込み）を build 時に適用する。
@@ -159,9 +162,9 @@ mxfile を生成する:
 - 注意: 変種の background は colorMap を通さない。抽出テーマの前景
   #ffffff と変種背景 #ffffff のように偶然同値だと誤写像されるため
   （実測値をそのまま使い、palette には記録する）。
-- 制約: 変種ページを省いた図をライトテーマで埋め込むと iconSet 不一致
-  でページ 0 に fallback する（アイコンが系統違いのまま）。図の生成は
-  常に VARIANT_ENTRY 付きで行うこと。
+- 制約: 変種ページを省いた図を iconSet 不一致のテーマで埋め込むと
+  ページ 0（light 系）に fallback する（アイコンが系統違いのまま）。
+  図の生成は常に VARIANT_ENTRY 付きで行うこと。
 
 ### viewer-static.min.js の性質
 

@@ -404,12 +404,11 @@ try {
     return { palette, unmapped }
   }
   const main = paletteFor(usedColors, info.theme)
-  const pageMeta = [{ name: info.iconSet, iconSet: info.iconSet, ...main }]
+  const entries = [{ xml: pageXml, meta: { name: info.iconSet, iconSet: info.iconSet, ...main } }]
 
   // 変種ページ: palette を介して抽出テーマ色 → 変種テーマ色へ写像し、
   // アイコン・plate も変種テーマの姿で焼き込む。埋め込み側は現テーマの
   // iconSet に合うページを選び、そのページの palette で色だけ適応する
-  const pages = [pageXml]
   if (variant) {
     const colorMap = {}
     for (const [hexVal, varName] of Object.entries(main.palette))
@@ -421,13 +420,21 @@ try {
       iconResolve,
       dropPlates: !/^#[0-9a-fA-F]{6}$/.test(variant.plate ?? ''),
     })
-    pages.push(v.pageXml)
-    pageMeta.push({
-      name: VARIANT_NAME,
-      iconSet: variant.iconSet,
-      ...paletteFor(v.usedColors, variant.theme),
+    entries.push({
+      xml: v.pageXml,
+      meta: {
+        name: VARIANT_NAME,
+        iconSet: variant.iconSet,
+        ...paletteFor(v.usedColors, variant.theme),
+      },
     })
   }
+
+  // light 系を先頭（= 埋め込み側 fallback）に置く。明るい背景の資料に
+  // 暗い図が紛れるより、暗い背景に明るい図が紛れる方が違和感が小さいため
+  entries.sort((a, b) => (a.meta.iconSet === 'light' ? -1 : 1) - (b.meta.iconSet === 'light' ? -1 : 1))
+  const pages = entries.map((e) => e.xml)
+  const pageMeta = entries.map((e) => e.meta)
 
   await mkdir(dirname(OUT), { recursive: true })
   await writeFile(OUT, wrapMxfile(pages))
