@@ -12,6 +12,9 @@ const props = defineProps({
   themeSrc: { type: String, default: '' }, // 省略時は src + '.theme.json'
   w: { type: Number, required: true }, // 宣言サイズ（埋め込み契約。図の bbox と一致すること）
   h: { type: Number, required: true },
+  // 表示するレイヤー名（mxCell parent="0" の value）の列。省略時は全レイヤー。
+  // 段階図（差分管理）の各段をひとつの .drawio で持ち、スライド側で選ぶ
+  layers: { type: Array, default: null },
 })
 
 const el = ref(null)
@@ -78,6 +81,21 @@ onMounted(async () => {
   // 立てて（エラー印付き）walker を待たせない
   try {
     const doc = window.mxUtils.parseXml(xml)
+    // レイヤー選択: 選択ページの root 直下セル（レイヤー）の visible を
+    // props.layers に従い上書きする。GraphViewer は visible="0" のレイヤーを
+    // 描画せず、walker も view state 不在として自然に skip する
+    if (props.layers) {
+      const models = [...doc.documentElement.querySelectorAll('mxGraphModel')]
+      const model = models[pageIdx]
+      if (model) {
+        for (const c of model.querySelectorAll(':scope > root > mxCell')) {
+          const p = c.getAttribute('parent')
+          if (p !== '0') continue // レイヤーは parent="0"（"0" 自身は root）
+          const name = c.getAttribute('value') ?? ''
+          c.setAttribute('visible', props.layers.includes(name) ? '1' : '0')
+        }
+      }
+    }
     const viewer = new window.GraphViewer(el.value, doc.documentElement, {
       nav: false,
       highlight: 'none',
