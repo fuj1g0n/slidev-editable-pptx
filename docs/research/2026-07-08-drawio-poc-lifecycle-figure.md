@@ -27,7 +27,7 @@
 | 抽出器 | `bin/diag-extract-drawio.mjs` | 原本ページを walker で実測し、中間語彙 → mxGraph XML + テーマ色対応表 (.theme.json) を生成。エッジは解決済み waypoints を明示埋め込み、アイコンは data URI 埋め込み |
 | 描画 | `components/DrawioDiag.vue` | vendored viewer-static.min.js (Apache-2.0, 3.9MB) で scale=1 固定描画。テーマ対応表により hex→現テーマ CSS 変数実値へ書き換え。`el.__drawioGraph` と `data-drawio-ready` を公開 |
 | 変換器 | `lib/walker.mjs` (bin から抽出) | `[data-diag="drawio"]` 分岐: model 子順 (z 順) で走査し view state (絶対座標) から中間語彙へ写像。未対応セルは state.shape.node の SVG 単体化でセル単位ラスタライズ (z 位置維持)。`drawio-coverage` 要素で被覆数を報告 |
-| PoC デッキ | tech-slide `slides/drawio-poc.md` | p1 = DrawioDiag 版、p2 = 原本 (`src: ./deck.md#6`) |
+| PoC デッキ | tech-slide `slides/drawio-poc-dark.md` | p1 = DrawioDiag 版、p2 = 原本 (`src: ./deck.md#6`) |
 
 ## 2. 検証マトリクス（結果）
 
