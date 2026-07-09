@@ -396,6 +396,37 @@ try {
             flipH: to.x < from.x,
             flipV: to.y < from.y,
           })
+        } else if (el.curved) {
+          // drawio curved=1 は mxShape.paintCurvedLine と同じ描画:
+          // 中間点で二次ベジェを連鎖（制御点 = waypoint、終点 = 次区間の中点）。
+          // 折れ線 + 角丸で近似すると経路が本来の曲線から外れて図形に食い込む
+          const xs = el.points.map((p) => p.x)
+          const ys = el.points.map((p) => p.y)
+          const [minX, minY] = [Math.min(...xs), Math.min(...ys)]
+          const P = el.points.map((p) => ({ x: p.x - minX, y: p.y - minY }))
+          const n = P.length
+          const pts = [{ x: px2inX(P[0].x), y: px2inY(P[0].y) }]
+          for (let i = 1; i < n - 2; i++) {
+            pts.push({
+              x: px2inX((P[i].x + P[i + 1].x) / 2),
+              y: px2inY((P[i].y + P[i + 1].y) / 2),
+              curve: { type: 'quadratic', x1: px2inX(P[i].x), y1: px2inY(P[i].y) },
+            })
+          }
+          pts.push({
+            x: px2inX(P[n - 1].x),
+            y: px2inY(P[n - 1].y),
+            curve: { type: 'quadratic', x1: px2inX(P[n - 2].x), y1: px2inY(P[n - 2].y) },
+          })
+          slide.addShape('custGeom', {
+            x: px2inX(minX),
+            y: px2inY(minY),
+            w: px2inX(Math.max(...xs) - minX),
+            h: px2inY(Math.max(...ys) - minY),
+            points: pts,
+            fill: { type: 'none' },
+            line,
+          })
         } else {
           // 折れ線はカスタム図形で忠実に描く。折れ点は SVG 描画（DiagEdge）と同じ
           // R=6px の角丸（二次ベジェ）にする。L 字も含め全経路をこの形式に統一する
