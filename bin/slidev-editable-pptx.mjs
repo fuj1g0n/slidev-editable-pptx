@@ -282,7 +282,10 @@ try {
           ...box,
           rectRadius: px2inX(el.radiusPx),
           fill: el.fill ? { color: el.fill } : undefined,
-          line: { color: el.border, width: px2pt(el.borderWPx) },
+          line:
+            el.borderWPx > 0
+              ? { color: el.border, width: px2pt(el.borderWPx) }
+              : { type: 'none' },
         })
         if (el.label) {
           slide.addText(
