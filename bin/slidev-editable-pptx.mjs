@@ -250,7 +250,9 @@ try {
           // dark テーマの下敷き（img の背景色）を角丸矩形として先に敷く
           if (el.plate) {
             slide.addText('', {
-              shape: 'roundRect',
+              // rectRadius: 0 は pptxgenjs が adj を書かず PowerPoint 既定の丸みに
+              // 落ちるため、丸みなしはプリセット rect を使う
+              shape: el.plate.radiusPx > 0 ? 'roundRect' : 'rect',
               ...box,
               rectRadius: px2inX(el.plate.radiusPx),
               fill: { color: el.plate.color },
@@ -276,7 +278,7 @@ try {
         }
       } else if (el.kind === 'diag-box') {
         slide.addText('', {
-          shape: 'roundRect',
+          shape: el.radiusPx > 0 ? 'roundRect' : 'rect',
           ...box,
           rectRadius: px2inX(el.radiusPx),
           fill: el.fill ? { color: el.fill } : undefined,
