@@ -527,6 +527,8 @@ try {
             bold: r.bold,
             italic: r.italic,
             highlight: r.highlight || undefined,
+            hyperlink: r.href ? { url: r.href } : undefined,
+            underline: r.underline ? { style: 'sng' } : undefined,
           },
         }))
         slide.addText(runs, {
